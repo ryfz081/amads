@@ -51,12 +51,12 @@ def beat_upbeat_ratio(
 
         >>> my_upbeats = np.array([0.6, 1.4])
         >>> my_beats = np.array([0., 1., 2.])
-        >>> beat_upbeat_ratio(my_beats, my_upbeats)
+        >>> beat_upbeat_ratio(my_beats, my_upbeats, use_log2_burs=True)
         np.array([-0.5849625, 0.5849625])
 
         >>> my_upbeats = np.array([0.6, 0.7, 1.4])
         >>> my_beats = np.array([0., 1., 2.])
-        >>> beat_upbeat_ratio(my_beats, my_upbeats)
+        >>> beat_upbeat_ratio(my_beats, my_upbeats, allow_multiple_burs_per_beat=False)
         Traceback (most recent call last):
             ...
         ValueError: Expected only one upbeat between 0.0 and 1.0, but got [0.6 0.7]
