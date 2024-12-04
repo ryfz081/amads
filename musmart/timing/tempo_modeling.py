@@ -43,11 +43,13 @@ def tempo_slope(beats: np.array) -> float:
 
     """
 
-    beats = np.sort(beats)
     # Dependent variable: BPM measurements
     y = 60 / np.diff(beats)
     # Predictor variable: the onset time
     x = beats[1:]
+    # Handling NaNs: remove missing values from both arrays
+    nan_idxs = np.isnan(y)
+    x, y = x[~nan_idxs], y[~nan_idxs]
     # Compute linear regression and return slope
     return linregress(x, y).slope
 
@@ -75,11 +77,13 @@ def tempo_drift(beats: np.array) -> float:
 
     """
 
-    beats = np.sort(beats)
     # Dependent variable: BPM measurements
     y = 60 / np.diff(beats)
     # Predictor variable: the onset time
     x = beats[1:]
+    # Handling NaNs: remove missing values from both arrays
+    nan_idxs = np.isnan(y)
+    x, y = x[~nan_idxs], y[~nan_idxs]
     # Compute linear regression and return slope
     return linregress(x, y).stderr
 
@@ -106,6 +110,6 @@ def tempo_fluctuation(beats: np.array) -> float:
 
     """
 
-    inter_beat_intervals = np.diff(np.sort(beats))
-    return np.std(inter_beat_intervals) / np.mean(inter_beat_intervals)
+    inter_beat_intervals = np.diff(beats)
+    return np.nanstd(inter_beat_intervals) / np.nanmean(inter_beat_intervals)
 

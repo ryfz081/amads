@@ -25,8 +25,8 @@ def beat_upbeat_ratio(
     note followed by a triplet eighth note, while a BUR of 1 indicates 'even' eighth note durations.
 
     By default, it is expected that there will be exactly one upbeat between every two consecutive beats. If this is
-    not the case, this function will raise a ValueError. To bypass this, pass `allow_multiple_burs_per_beat=True`,
-    which will calculate a BUR for every upbeat between two beats.
+    not the case, this function will only return a BUR for the first value following each beat. To bypass this, pass
+    `allow_multiple_burs_per_beat=True`, which will calculate a BUR for every upbeat between two beats.
 
     Arguments:
         beats (np.array): an array of quarter note beat timestamps
@@ -34,14 +34,11 @@ def beat_upbeat_ratio(
         use_log2_burs (bool, optional): whether to use the log^2 of inter-onset intervals to calculate BURs,
             as employed in [2]. Defaults to False.
         allow_multiple_burs_per_beat (bool, optional): if multiple upbeats are found between two consecutive beats and
-            this value is True, will return a beat-upbeat ratio for every upbeat. Otherwise, will raise ValueError.
+            this value is True, will return a beat-upbeat ratio for every upbeat. Otherwise, will return a value only
+            for the first upbeat following a single beat
 
     Returns:
         np.array: the calculated BUR values
-
-    Raises:
-        ValueError: if multiple upbeats are found between two consecutive beats and `allow_multiple_burs_per_beat` is
-        False
 
     Examples:
         >>> my_upbeats = np.array([0.6, 1.4])
@@ -80,8 +77,10 @@ def beat_upbeat_ratio(
         assert beat2 > beat1
         # Find all upbeats between these two beats
         upbeats_bw = upbeats[(beat1 <= upbeats) & (upbeats <= beat2)]
+        # If we've found multiple upbeats, and we only want to get one BUR per beat
         if len(upbeats_bw) > 1 and not allow_multiple_burs_per_beat:
-            raise ValueError(f"Expected only one upbeat between {beat1} and {beat2}, but got {upbeats_bw}")
+            # Just use the first upbeat we've found
+            upbeats_bw = np.array([upbeats_bw[0]])    # keep as an array to allow iteration
         # Iterate over all upbeats found between the two beats
         found_burs = []
         for upbeat_bw in upbeats_bw:
@@ -96,8 +95,9 @@ def beat_upbeat_ratio(
             found_burs.append(bur)
         return np.array(found_burs)
 
-    # Sort both input arrays
-    upbeats = np.sort(upbeats)
-    beats = np.sort(beats)
-    # Iterate through consecutive pairs of beats and get the BUR
-    return np.concatenate([_bur(b1, b2) for b1, b2 in zip(beats, beats[1:])])
+    # Get consecutive pairs of (non-missing) beats
+    consecutive_beats = np.array(
+        [(b1, b2) for b1, b2 in zip(beats, beats[1:]) if not any((np.isnan(b1), np.isnan(b2)))]
+    )
+    # Calculate the BUR for upbeats between consecutive beats
+    return np.concatenate([_bur(b1, b2) for b1, b2 in consecutive_beats])
