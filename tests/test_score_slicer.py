@@ -1,6 +1,4 @@
-
-
-from musmart.algorithm.slider import chordify
+from musmart.algorithm.slider import Chordifier, chordify
 from musmart.io.pt_midi_import import partitura_midi_import
 from musmart.music import example
 
@@ -8,6 +6,11 @@ from musmart.music import example
 def test_chordify():
     midi_file = example.fullpath("midi/twochan.mid")
     score = partitura_midi_import(midi_file, ptprint=False)
+
+    timepoints = Chordifier().tabulate_timepoints(score)
+
+    assert len([t for t in timepoints if len(t.note_ons) > 0]) == 16
+
     chords = chordify(score)
     
     assert len(chords) == 16
@@ -18,15 +21,15 @@ def test_chordify():
         [43, 67], 
         [43, 65], 
         [45, 67], 
-        [64], 
+        [45, 64], 
         [43, 67], 
-        [71], 
+        [43, 71], 
         [40, 69], 
-        [71], 
+        [40, 71], 
         [38, 74], 
-        [71], 
+        [38, 71], 
         [43, 69], 
-        [67], 
+        [43, 67], 
         [47, 64], 
-        [67],
+        [47, 67]
     ]

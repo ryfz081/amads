@@ -9,79 +9,86 @@ from musmart.core.basics import Note, Score
 
 EndOfSequence = object()
 
+from dataclasses import dataclass
+
+@dataclass
+class Timepoint:
+    id: int
+    time: float 
+    note_ons: list[Note]
+    note_offs: list[Note]
+    sounding_notes: set[Note]
+
+
 class ScoreSlicer:
-    def slide_over(self, score: Score):
-        score = score.flatten().collapse_parts()
-        notes = list(score.find_all(Note))
-        notes.sort(key=lambda n: (n.offset, n.keynum))
-        notes.append(EndOfSequence)
-        
-        # slice = []
-        last_offset = None
+    time_n_decimals = 6
 
-        for note in notes:
-            assert last_offset is None or note.offset >= last_offset
-
-            self.consume_note(note)
-
-            # if self.slice_ready(slice, next_note=note):
-            #     yield self.finalize_slice(slice, next_note=note)
-            #     slice = []
-
-            # slice.append(note)
-
-        
-            
-
-    # def slice_ready(self, slice: List[Note]):
-    #     raise NotImplementedError
+    def slice(self, score: Score):
+        timepoints = self.tabulate_timepoints(score)
+        return self._slice(timepoints)
     
-    # def finalize_slice(self, slice: List[Note], next_note: Note):
-    #     raise NotImplementedError
+    def _slice(self, timepoints: List[Timepoint]):
+        raise NotImplementedError
 
+    def tabulate_timepoints(self, score: Score) -> List[Timepoint]:
+        notes = self.get_notes(score)
+
+        from collections import defaultdict
+
+        note_ons = defaultdict(list)
+        note_offs = defaultdict(list)
+        
+        for note in notes:
+            note_on = round(note.offset, self.time_n_decimals)
+            note_off = round(note.offset + note.dur, self.time_n_decimals)
+
+            note_ons[note_on].append(note)
+            note_offs[note_off].append(note)
+
+        times = sorted(set(note_ons.keys()) | set(note_offs.keys()))
+
+        timepoints = []
+        sounding_notes = set()
+        
+        for i, time in enumerate(times):
+            for note in note_offs[time]:
+                sounding_notes.discard(note)
+
+            for note in note_ons[time]:
+                sounding_notes.add(note)
+
+            timepoints.append(Timepoint(
+                id=i, 
+                time=time, 
+                note_ons=note_ons[time], 
+                note_offs=note_offs[time],
+                sounding_notes=sorted(list(sounding_notes), key=lambda n: n.keynum),
+            ))
+
+        return timepoints
+
+    def get_notes(self, score: Score):
+        notes = list(score.flatten().collapse_parts().find_all(Note))
+        notes.sort(key=lambda n: (n.offset, n.keynum))
+        return notes
+    
 
 class Chordifier(ScoreSlicer):
-    def __init__(self):
-        self.sounding_notes = []
-        self.pending_slice = []
-        self.slices = []
+    def __init__(self, slice_on_note_start: bool = True, slice_on_note_end: bool = False):
+        assert slice_on_note_start or slice_on_note_end
+        self.slice_on_note_start = slice_on_note_start
+        self.slice_on_note_end = slice_on_note_end
 
-    def consume_note(self, note: Note):
-        assert note.tie is None
+    def _slice(self, timepoints: List[Timepoint]):
+        slices = []
+        for timepoint in timepoints:
+            if (
+                (self.slice_on_note_start and len(timepoint.note_ons) > 0)
+                or (self.slice_on_note_end and len(timepoint.note_offs) > 0)
+            ):
+                # TODO: decide whether to edit the offsets of the notes
+                # I think the answer is yes
+                slices.append(timepoint.sounding_notes)
 
-        if self.should_start_new_slice(note):
-            self.finalize_slice(self.pending_slice, note)  # todo - make slice a class
-            self.slices.append(self.pending_slice)
-            self.pending_slice = []
-
-        self.pending_slice.append(note)
-
-
-
-
-
-
-    def slice_ready(self, slice: List[Note], next_note: Note):
-        if len(slice) == 0:
-            return False
-        elif next_note == EndOfSequence:
-            return True
-        else:
-            return slice[0].offset < next_note.offset
-    
-    def finalize_slice(self, slice: List[Note], next_note: Note):
-        return [
-            self.update_note(note, next_note)
-            for note in slice
-        ]
-    
-    def update_note(self, note: Note, next_note: Note):
-        note = note.copy()
-        if next_note != EndOfSequence:
-            note.dur = next_note.offset - note.offset
-        return note
-
-
-def chordify(score: Score):
-    chordifier = Chordifier()
-    return list(chordifier.slide_over(score))
+        return slices
+        
