@@ -35,6 +35,7 @@ dev = [
     "sphinx-autodoc-typehints",
     "myst-parser",
     "pytest-cov",
+    "pretty_midi",
 ]
 test = [
     "pytest>=7.0.0",

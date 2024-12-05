@@ -17,16 +17,16 @@ https://github.com/MarkGotham/Serial_Analyser
 """
 
 import pytest
-from musmart.algorithm.pitch_list_transformations import (
+from musmart.pitch.transformations import (
     invert,
-    pair_swap_krenek,
     pitches_to_intervals,
     retrograde,
     rotate,
-    rotate_hexachords,
     transpose_by,
     transpose_to,
 )
+
+from musmart.serial import pair_swap_krenek, rotate_hexachords
 
 
 def test_transpose():

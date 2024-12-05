@@ -34,7 +34,8 @@ Anything starting with pitches involves more calculation.
 """
 
 from typing import Union, List, Tuple
-from musmart import pc_sets, pitch_list_transformations
+from ..resources import pc_sets
+from ..pitch import transformations as pitch_list_transformations
 
 
 def set_classes_from_cardinality(cardinality: int):
