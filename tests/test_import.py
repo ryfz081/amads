@@ -9,11 +9,18 @@ from musmart.music import example
 
 
 
-def test_import_midi():
+
+@pytest.mark.parametrize("midi_filename", ["sarabande.mid", "chopin_prelude_7.mid"])
+def test_import_midi(midi_filename):
     """
     Test MIDI import by comparing the results with pretty_midi.
+    
+    Parameters
+    ----------
+    midi_filename : str
+        Name of the MIDI file to test
     """
-    midi_file = example.fullpath("midi/sarabande.mid")
+    midi_file = example.fullpath(f"midi/{midi_filename}")
     score = partitura_midi_import(midi_file, ptprint=False)
     assert isinstance(score, Score)
 
