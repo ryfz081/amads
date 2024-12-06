@@ -7,7 +7,7 @@ def test_chordify():
     midi_file = example.fullpath("midi/twochan.mid")
     score = partitura_midi_import(midi_file, ptprint=False)
 
-    timepoints = Chordifier().tabulate_timepoints(score)
+    timepoints = Chordifier().get_timepoints(score)
 
     assert len([t for t in timepoints if len(t.note_ons) > 0]) == 16
 

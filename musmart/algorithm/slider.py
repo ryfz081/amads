@@ -24,13 +24,13 @@ class ScoreSlicer:
     time_n_decimals = 6
 
     def slice(self, score: Score):
-        timepoints = self.tabulate_timepoints(score)
+        timepoints = self.get_timepoints(score)
         return self._slice(timepoints)
     
     def _slice(self, timepoints: List[Timepoint]):
         raise NotImplementedError
 
-    def tabulate_timepoints(self, score: Score) -> List[Timepoint]:
+    def get_timepoints(self, score: Score) -> List[Timepoint]:
         notes = self.get_notes(score)
 
         from collections import defaultdict
