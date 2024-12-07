@@ -1,4 +1,4 @@
-from musmart.algorithm.slider import Timeline, salami_slice
+from musmart.algorithm.slice import Timeline, salami_slice
 from musmart.io.pt_midi_import import partitura_midi_import
 from musmart.music import example
 
