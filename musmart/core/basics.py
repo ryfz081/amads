@@ -32,6 +32,7 @@ Score (one per musical work or movement)
 #    to take advantage of existing conventions and copy module.
 
 
+import functools
 from math import floor
 import weakref
 import sys
@@ -63,11 +64,11 @@ class Event:
     @property
     def end_offset(self):
         return self.offset + self.dur
-        
+
     @property
     def parent(self):
         return self._parent and self._parent
-    
+
     @parent.setter
     def parent(self, p):
         self._parent = weakref.ref(p)
@@ -80,7 +81,7 @@ class Event:
             return p().qstart() + self.offset
         else:
             return self.offset
-        
+
     def qstop(self):
         return self.qstart() + self.dur
 
@@ -102,13 +103,13 @@ class Rest (Event):
         """Make a copy of just this object with no parent.
         """
         return Rest(dur=self.dur, offset=self.offset)
-    
+
 
     def show(self, indent=0):
         print(' ' * indent, f"Rest at {self.qstart():.3f} ",
               f"offset {self.offset:.3f} dur {self.dur:.3f}", sep='')
         return self
-        
+
 
     def deep_copy(self):
         """Make a deep copy, omitting weak link to parent.
@@ -158,7 +159,7 @@ class Note (Event):
                  lyric=self.lyric, offset=self.offset)
         n.tie = self.tie
         return n
-    
+
 
     def show(self, indent=0):
         tieinfo = ''
@@ -197,7 +198,7 @@ class Note (Event):
 
     @pitch_class.setter
     def pitch_class(self, pc): self.pitch.pitch_class = pc
-        
+
     @property
     def octave(self): return self.octave
 
@@ -224,9 +225,9 @@ class TimeSignature (Event):
     # _parent -- weak reference to containing object if any
     # beat -- the "numerator" of the key signature: beats per measure, a
     #         number, which may be a fraction.
-    # beat_type -- the "numerator" of the key signature: a whole number 
+    # beat_type -- the "numerator" of the key signature: a whole number
     #         power of 2, e.g. 1, 2, 4, 8, 16, 32, 64.
- 
+
     def __init__(self, beat=4, beat_type=4, offset=0):
         super().__init__(0, offset)
         self.beat = beat
@@ -240,7 +241,7 @@ class TimeSignature (Event):
 
 
     def show(self, indent=0):
-        print(' ' * indent, f"TimeSignature at {self.qstart():0.3f} offset ", 
+        print(' ' * indent, f"TimeSignature at {self.qstart():0.3f} offset ",
               f"{self.offset:0.3f}: {self.beat}/{self.beat_type}", sep='')
         return self
 
@@ -252,7 +253,7 @@ class TimeSignature (Event):
         return ts
 
 
- 
+
 class KeySignature (Event):
     """KeySignature is a zero-duration Event with keysig info.
     """
@@ -275,19 +276,19 @@ class KeySignature (Event):
 
 
     def show(self, indent=0):
-        print(' ' * indent, f"KeySignature at {self.qstart():0.3f} offset ", 
-              f"{self.offset:0.3f}", abs(self.keysig), 
+        print(' ' * indent, f"KeySignature at {self.qstart():0.3f} offset ",
+              f"{self.offset:0.3f}", abs(self.keysig),
               " sharps" if self.keysig > 0 else " flats", sep='')
         return self
-    
+
 
     def deep_copy(self):
         """Make a deep copy, omitting weak link to parent.
         """
         return self.copy()
-    
 
 
+@functools.total_ordering
 class Pitch:
     """A Pitch represents a symbolic musical pitch. It has two parts:
     The keynum is a number that corresponds to the MIDI convention
@@ -324,6 +325,21 @@ class Pitch:
         elif pc in [10, 3, 8]:  # Bb->B, Eb->E, Ab->A
             self.alt -= 1
         # now (keynum + alt) % 12 is in {C D E F G A B}
+
+    def astuple(self):
+        return (self.keynum, self.alt)
+
+    def __eq__(self, other):
+        return self.astuple() == other.astuple()
+
+    def __hash__(self):
+        return hash(self.astuple())
+
+    def __lt__(self, other):
+        # We sort first by keynum, then by alt.
+        # We consider pitches with sharps (i.e. positive alt) to be lower
+        # because their letter names are lower in the musical alphabet.
+        return (self.keynum, - self.alt) < (other.keynum, - other.alt)
 
     @property
     def name(self):
@@ -453,13 +469,13 @@ class Mgroup (Event):
         for elem in self.content:
             elem.show(indent + 4)
         return self
-    
+
 
     @property
     def last(self):
         return self.content[-1] if len(self.content) > 0 else None
 
-    
+
     def deep_copy(self):
         raise Exception(
                 "Mgroup is abstract, subclass should override deep_copy()")
@@ -472,7 +488,7 @@ class Mgroup (Event):
         chords = self.find_all(Chord)
         # if there are no chords, next will return "empty"
         return next(chords, "empty") != "empty"
-            
+
 
     def has_ties(self):
         """Test if Mgroup (e.g. Score, Part, Staff, Measure) has any
@@ -483,14 +499,14 @@ class Mgroup (Event):
             if note.tie:
                 return True
         return False
-            
+
 
     def has_measures(self):
         """Test if Mgroup (e.g. Score, Part, Staff) has any measures."""
         measures = self.find_all(Measure)
         # if there are no chords, next will return "empty"
         return next(measures, "empty") != "empty"
-            
+
 
     def insert(self, event):
         """insert an event without any changes to event.offset or
@@ -616,7 +632,7 @@ class Sequence (Mgroup):
             if isinstance(elem, Mgroup):
                 elem.pack()
             offset += elem.dur
-        
+
 
 
 class Concurrence (Mgroup):
@@ -624,7 +640,7 @@ class Concurrence (Mgroup):
     of music events (but if elements have a non-zero offset, a Concurrence
     can represent events organized over time).  Thus, the main distinction
     between Concurrence and Sequence is the behavior of methods, since both
-    classes can represent simultaneous or sequential events. 
+    classes can represent simultaneous or sequential events.
     """
     # offset -- start time in quarters as an offset from parent's start time
     # dur -- duration in quarters
@@ -713,7 +729,7 @@ class Chord (Concurrence):
     def show(self, indent=0):
          return super().show(indent, "Chord")
 
-    
+
     def copy(self):
         return Chord(offset=self.offset, dur=self.dur)
 
@@ -738,7 +754,7 @@ class Measure (Sequence):
     # content -- elements contained within this collection
     # number -- A string or None. The number assigned to the measure in the
     #         score (if any). E.g. "22a".
- 
+
     def __init__(self, number=None, offset=0, dur=4, content=None):
         super().__init__(offset, dur, content)
         self.number = number
@@ -749,7 +765,7 @@ class Measure (Sequence):
         """
         m = Measure(number=self.number, offset=self.offset, dur=self.dur)
         return m
-        
+
 
     def show(self, indent=0):
         nstr = ' ' + str(self.number) if self.number else ''
@@ -826,7 +842,7 @@ class Score (Concurrence):
 
 
     def show(self, indent=0):
-        print(' ' * indent, f"Score at {self.qstart():0.3f} offset ", 
+        print(' ' * indent, f"Score at {self.qstart():0.3f} offset ",
               f"{self.offset:0.3f} dur {self.dur:0.3f}", sep='')
         self.timemap.show(indent + 4)
         for elem in self.content:
@@ -856,7 +872,7 @@ class Score (Concurrence):
                 return False
         return True
 
-    
+
 
     def strip_ties(self):
         """Create a new Score with tied note sequences replaced by
@@ -900,7 +916,7 @@ class Score (Concurrence):
     def is_flattened(self):
         # TODO
         pass
-    
+
     def is_flattened_and_collapsed(self):
         """Determine if score has been flattened into one part"""
         return self.part_count() == 1 and \
@@ -939,7 +955,7 @@ class Score (Concurrence):
             for part in self.content:
                 score.insert(part.flatten())
         return score
-    
+
 
     def collapse_parts(self, part=None, staff=None):
         """return a flattened score with all parts merged into one and
@@ -948,7 +964,7 @@ class Score (Concurrence):
             Score
                 Part
                     Note Note Note ...
-        so the note list can be accessed using 
+        so the note list can be accessed using
             score.collapse_parts(...).content[0].content
 
         If part is given, only notes from the selected part are included.
@@ -1014,7 +1030,7 @@ class Part (Concurrence):
     #         to their top-to-bottom ordering in the Score, starting with 1.
     # instrument -- None or a string naming the instrument to play this Part.
 
-    def __init__(self, number=None, instrument=None, offset=0, dur=0, 
+    def __init__(self, number=None, instrument=None, offset=0, dur=0,
                  content=None):
         super().__init__(offset, dur, content)
         self.number = number
@@ -1024,7 +1040,7 @@ class Part (Concurrence):
     def copy(self):
         """Make a copy, omitting weak link to parent.
         """
-        p = Part(number=self.number, instrument=self.instrument, 
+        p = Part(number=self.number, instrument=self.instrument,
                  offset=self.offset, dur=self.dur)
         return p
 
@@ -1062,13 +1078,13 @@ class Part (Concurrence):
         equivalent notes in each staff
         """
         part = self.copy()
-        
+
         for staff in self.content:
             if not isinstance(staff, Staff):
                 return self  # no need to strip ties from flattened score
             part.insert(staff.strip_ties())
         return part
-    
+
 
     def strip_chords(self):
         """return a deep copy with Chord elements replaced by individual notes.
@@ -1179,7 +1195,7 @@ class Staff (Sequence):
                     measure.insert(event.deep_copy())
             staff.insert(measure)
         return staff
-    
+
 
     def tied_dur(self, note, m_index=None):
         """Compute the full duration of note as the sum of notes that note
