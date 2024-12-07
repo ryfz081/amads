@@ -3,7 +3,7 @@ from musmart.io.pt_midi_import import partitura_midi_import
 from musmart.music import example
 
 
-def test_chordify_twochan():
+def test_salami_slice_twochan():
     midi_file = example.fullpath("midi/twochan.mid")
     score = partitura_midi_import(midi_file, ptprint=False)
 
