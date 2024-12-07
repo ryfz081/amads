@@ -4,8 +4,8 @@ Author: Peter Harrison
 """
 
 from collections import defaultdict
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import Iterable, List, Optional, Union
 from musmart.core.basics import Note, Score
 
 
@@ -14,73 +14,51 @@ EndOfSequence = object()
 
 @dataclass
 class Timepoint:
-    id: int
     time: float
-    note_ons: list[Note]
-    note_offs: list[Note]
-    sounding_notes: set[Note]
+    note_ons: list[Note] = field(default_factory=list)
+    note_offs: list[Note] = field(default_factory=list)
+    sounding_notes: set[Note] = field(default_factory=set)
 
     @property
     def last_note_end(self):
         return max(n.offset + n.dur for n in self.sounding_notes)
 
 
-# TODO: refactor to use a generator
-@dataclass
-class Timeline:
-    timepoints: List[Timepoint]
-    time_n_decimals: int
+def get_timepoints(notes: List[Note], time_n_digits: Optional[int] = None) -> List[Timepoint]:
+    note_ons = defaultdict(list)
+    note_offs = defaultdict(list)
 
-    def __len__(self):
-        return len(self.timepoints)
+    for note in notes:
+        note_on = note.offset
+        note_off = note.offset + note.dur
 
-    def __getitem__(self, index: int) -> Timepoint:
-        return self.timepoints[index]
+        if time_n_digits is not None:
+            note_on = round(note_on, time_n_digits)
+            note_off = round(note_off, time_n_digits)
 
-    def __iter__(self):
-        return iter(self.timepoints)
+        note_ons[note_on].append(note)
+        note_offs[note_off].append(note)
 
-    @classmethod
-    def from_score(cls, score: Score, time_n_decimals: int = 6) -> "Timeline":
-        notes = cls.get_notes(score)
+    times = sorted(set(note_ons.keys()) | set(note_offs.keys()))
 
-        note_ons = defaultdict(list)
-        note_offs = defaultdict(list)
+    timepoints = []
+    sounding_notes = set()
 
-        for note in notes:
-            note_on = round(note.offset, time_n_decimals)
-            note_off = round(note.offset + note.dur, time_n_decimals)
+    for time in enumerate(times):
+        for note in note_offs[time]:
+            sounding_notes.discard(note)
 
-            note_ons[note_on].append(note)
-            note_offs[note_off].append(note)
+        for note in note_ons[time]:
+            sounding_notes.add(note)
 
-        times = sorted(set(note_ons.keys()) | set(note_offs.keys()))
+        timepoints.append(Timepoint(
+            time=time,
+            note_ons=note_ons[time],
+            note_offs=note_offs[time],
+            sounding_notes=sorted(list(sounding_notes), key=lambda n: n.keynum),
+        ))
 
-        timepoints = []
-        sounding_notes = set()
-
-        for i, time in enumerate(times):
-            for note in note_offs[time]:
-                sounding_notes.discard(note)
-
-            for note in note_ons[time]:
-                sounding_notes.add(note)
-
-            timepoints.append(Timepoint(
-                id=i,
-                time=time,
-                note_ons=note_ons[time],
-                note_offs=note_offs[time],
-                sounding_notes=sorted(list(sounding_notes), key=lambda n: n.keynum),
-            ))
-
-        return cls(timepoints, time_n_decimals)
-
-    @classmethod
-    def get_notes(cls, score: Score) -> List[Note]:
-        notes = list(score.flatten().collapse_parts().find_all(Note))
-        notes.sort(key=lambda n: (n.offset, n.keynum))
-        return notes
+    return timepoints
 
 
 @dataclass
@@ -99,22 +77,29 @@ class Slice:
 
 
 def salami_slice(
-        score: Score,
+        passage: Union[Score, Iterable[Note]],
         remove_duplicated_pitches: bool = True,
         include_empty_slices: bool = False,
         include_note_end_slices: bool = True,
         min_duration_for_note_end_slices: float = 0.01,
 ) -> List[Slice]:
-    timeline = Timeline.from_score(score)
+    if isinstance(passage, Score):
+        notes = passage.find_all(Note)
+        notes = sorted(notes, key=lambda n: n.offset)
+    else:
+        notes = passage
+
+    timepoints = get_timepoints(notes)
+
     slices = []
 
-    for i, timepoint in enumerate(timeline):
+    for i, timepoint in enumerate(notes):
         if (
             len(timepoint.note_ons) > 0
             or (include_note_end_slices and len(timepoint.note_offs) > 0)
         ):
             try:
-                next_timepoint = timeline[i + 1]
+                next_timepoint = timepoints[i + 1]
             except IndexError:
                 next_timepoint = None
 
