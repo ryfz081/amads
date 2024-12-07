@@ -1,16 +1,16 @@
-from musmart.algorithm.slider import Timeline, chordify
+from musmart.algorithm.slider import Timeline, salami_slice
 from musmart.io.pt_midi_import import partitura_midi_import
 from musmart.music import example
 
 
-def test_chordify():
+def test_chordify_twochan():
     midi_file = example.fullpath("midi/twochan.mid")
     score = partitura_midi_import(midi_file, ptprint=False)
 
     timeline = Timeline.from_score(score)
     assert len([t for t in timeline if len(t.note_ons) > 0]) == 16
 
-    chords = chordify(score)
+    chords = salami_slice(score)
 
     assert len(chords) == 16
     pitches = [[int(p.keynum) for p in c] for c in chords]

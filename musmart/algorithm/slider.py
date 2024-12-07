@@ -25,6 +25,7 @@ class Timepoint:
         return max(n.offset + n.dur for n in self.sounding_notes)
 
 
+# TODO: refactor to use a generator
 @dataclass
 class Timeline:
     timepoints: List[Timepoint]
@@ -96,46 +97,65 @@ class Slice:
         return len(self.notes)
 
 
-# TODO:
+
 def salami_slice(
         score: Score,
-        min_slice_duration: float = 0.0,
-        include_empty_slices: bool = True,
-        slice_on_note_start: bool = True,
-        slice_on_note_end: bool = True,
+        remove_duplicated_pitches: bool = True,
+        include_empty_slices: bool = False,
+        include_note_end_slices: bool = True,
+        min_duration_for_note_end_slices: float = 0.01,
 ) -> List[Slice]:
     timeline = Timeline.from_score(score)
     slices = []
 
     for i, timepoint in enumerate(timeline):
         if (
-            (slice_on_note_start and len(timepoint.note_ons) > 0)
-            or (slice_on_note_end and len(timepoint.note_offs) > 0)
+            len(timepoint.note_ons) > 0
+            or (include_note_end_slices and len(timepoint.note_offs) > 0)
         ):
-
-            assert len(timepoint.sounding_notes) > 0
-
             try:
                 next_timepoint = timeline[i + 1]
             except IndexError:
                 next_timepoint = None
 
+            is_last_timepoint = next_timepoint is None
+            is_empty_slice = len(timepoint.sounding_notes) == 0
+            is_note_end_slice = len(timepoint.note_ons) == 0 and len(timepoint.note_offs) > 0
+
+            if is_empty_slice:
+                if not include_empty_slices:
+                    continue
+                if is_last_timepoint:
+                    # Don't include empty slices at the end of the score
+                    continue
+
             slice_start = timepoint.time
 
             if next_timepoint is None:
-                slice_end = timepoint.last_note_end
+                if len(timepoint.sounding_notes) == 0:
+                    continue
+                else:
+                    slice_end = timepoint.last_note_end
             else:
                 slice_end = next_timepoint.time
 
             slice_duration = slice_end - slice_start
 
-            if slice_duration < min_chord_duration:
+            if is_note_end_slice and slice_duration < min_duration_for_note_end_slices:
                 continue
 
-            notes = [note.copy() for note in timepoint.sounding_notes]
-            for note in notes:
-                note.offset = slice_start
-                note.dur = slice_end - slice_start
+            pitches = [note.pitch for note in timepoint.sounding_notes]
+            if remove_duplicated_pitches:
+                pitches = sorted(set(pitches))
+
+            notes = [
+                Note(
+                    offset=slice_start,
+                    dur=slice_duration,
+                    pitch=pitch,
+                )
+                for pitch in pitches
+            ]
 
             slices.append(Slice(
                 notes=notes,
