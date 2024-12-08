@@ -9,9 +9,6 @@ from typing import Iterable, List, Optional, Union
 from musmart.core.basics import Note, Score
 
 
-EndOfSequence = object()
-
-
 @dataclass
 class Timepoint:
     time: float
@@ -44,7 +41,7 @@ def get_timepoints(notes: List[Note], time_n_digits: Optional[int] = None) -> Li
     timepoints = []
     sounding_notes = set()
 
-    for time in enumerate(times):
+    for time in times:
         for note in note_offs[time]:
             sounding_notes.discard(note)
 
@@ -74,6 +71,10 @@ class Slice:
     def __len__(self):
         return len(self.notes)
 
+    @property
+    def duration(self):
+        return self.end - self.start
+
 
 
 def salami_slice(
@@ -81,11 +82,10 @@ def salami_slice(
         remove_duplicated_pitches: bool = True,
         include_empty_slices: bool = False,
         include_note_end_slices: bool = True,
-        min_duration_for_note_end_slices: float = 0.01,
+        min_slice_duration: float = 0.01,
 ) -> List[Slice]:
     if isinstance(passage, Score):
-        notes = passage.find_all(Note)
-        notes = sorted(notes, key=lambda n: n.offset)
+        notes = passage.flatten(collapse=True).find_all(Note)
     else:
         notes = passage
 
@@ -93,7 +93,7 @@ def salami_slice(
 
     slices = []
 
-    for i, timepoint in enumerate(notes):
+    for i, timepoint in enumerate(timepoints):
         if (
             len(timepoint.note_ons) > 0
             or (include_note_end_slices and len(timepoint.note_offs) > 0)
@@ -105,7 +105,6 @@ def salami_slice(
 
             is_last_timepoint = next_timepoint is None
             is_empty_slice = len(timepoint.sounding_notes) == 0
-            is_note_end_slice = len(timepoint.note_ons) == 0 and len(timepoint.note_offs) > 0
 
             if is_empty_slice:
                 if not include_empty_slices:
@@ -126,7 +125,7 @@ def salami_slice(
 
             slice_duration = slice_end - slice_start
 
-            if is_note_end_slice and slice_duration < min_duration_for_note_end_slices:
+            if slice_duration < min_slice_duration:
                 continue
 
             pitches = [note.pitch for note in timepoint.sounding_notes]
