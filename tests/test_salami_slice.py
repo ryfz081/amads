@@ -5,17 +5,6 @@ from musmart.io.pt_midi_import import partitura_midi_import
 from musmart.music import example
 
 
-@fixture
-def twochan_score():
-    midi_file = example.fullpath("midi/twochan.mid")
-    return partitura_midi_import(midi_file, ptprint=False)
-
-
-@fixture
-def twochan_notes(twochan_score):
-    return list(twochan_score.flatten(collapse=True).find_all(Note))
-
-
 def test_timepoints_twochan(twochan_notes):
     timepoints = get_timepoints(twochan_notes, time_n_digits=6)
     assert len([t for t in timepoints if len(t.note_ons) > 0]) == 16
