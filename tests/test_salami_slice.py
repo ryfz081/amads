@@ -1,19 +1,28 @@
-from pytest import approx
+from pytest import approx, fixture
 from musmart.algorithm.slice import get_timepoints, salami_slice
 from musmart.core.basics import Note
 from musmart.io.pt_midi_import import partitura_midi_import
 from musmart.music import example
 
 
-def test_salami_slice_twochan():
+@fixture
+def twochan_score():
     midi_file = example.fullpath("midi/twochan.mid")
-    score = partitura_midi_import(midi_file, ptprint=False)
-    notes = list(score.flatten(collapse=True).find_all(Note))
+    return partitura_midi_import(midi_file, ptprint=False)
 
-    timepoints = get_timepoints(notes, time_n_digits=6)
+
+@fixture
+def twochan_notes(twochan_score):
+    return list(twochan_score.flatten(collapse=True).find_all(Note))
+
+
+def test_timepoints_twochan(twochan_notes):
+    timepoints = get_timepoints(twochan_notes, time_n_digits=6)
     assert len([t for t in timepoints if len(t.note_ons) > 0]) == 16
 
-    chords = salami_slice(score)
+
+def test_salami_slice_twochan(twochan_score):
+    chords = salami_slice(twochan_score)
     assert len(chords) == 16
 
     pitches = [[int(p.keynum) for p in c] for c in chords]
