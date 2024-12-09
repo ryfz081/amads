@@ -3,7 +3,7 @@ from typing import Iterable
 from pytest import approx
 
 from musmart.core.basics import Score, Note
-from musmart.algorithm.slice.window import window_slice
+from musmart.algorithm.slice.window import sliding_window
 
 
 def test_window_slice(twochan_score: Score, twochan_notes: Iterable[Note]):
@@ -16,7 +16,7 @@ def test_window_slice(twochan_score: Score, twochan_notes: Iterable[Note]):
     last_note_off = last_note.offset + last_note.dur
     assert last_note_off == approx(16.0)
 
-    windows = window_slice(
+    windows = sliding_window(
         score,
         size=size,
         step=step,

@@ -1,11 +1,39 @@
+"""Sliding window algorithm.
+
+The algorithm segments a musical score into fixed-size windows that can optionally
+overlap. Each window contains all notes that are sounding within its time boundaries.
+
+Author
+------
+Peter Harrison
+"""
+
+
 from typing import Iterable, Iterator, Optional, Union
 
 from .slice import Slice
 from ...core.basics import Note, Score
 from ...utils import float_range
 
-
 class Window(Slice):
+    """A fixed-size window of a musical score.
+
+    Parameters
+    ----------
+    time : float
+        The reference time for this window
+    size : float
+        The size of the window in time units
+    align : str
+        How to align the window relative to the reference time:
+        - "left": window starts at reference time
+        - "center": reference time is at window center
+        - "right": window ends at reference time
+    candidate_notes : Iterable[Note]
+        Notes to consider for inclusion in this window, sorted by offset and pitch
+    skip : int, default=0
+        Index to start searching from in candidate_notes
+    """
     def __init__(
             self,
             time: float,
@@ -14,8 +42,6 @@ class Window(Slice):
             candidate_notes: Iterable[Note],
             skip: int = 0,
     ):
-        # TODO: document that candidate_notes must be ordered by offset and pitch
-
         match align:
             case "left":
                 start = time
@@ -70,7 +96,7 @@ class Window(Slice):
         super().__init__(notes=notes, original_notes=original_notes, start=start, end=end)
 
 
-def window_slice(
+def sliding_window(
         passage: Union[Score, Iterable[Note]],
         size: float,
         step: float = 1.0,
@@ -79,45 +105,41 @@ def window_slice(
         end: Optional[float] = None,
         times: Optional[Iterable[float]] = None,
 ) -> Iterator[Window]:
-    """
-    Slice a score into (possibly overlapping) slices of a given size.
+    """Slice a score into (possibly overlapping) windows of a given size.
 
     Parameters
     ----------
-
-    passage :
-        The passage to slice.
-
-    size :
-        The size of each slice (time units).
-
-    step :
-        The step size to to take between slices (time units).
+    passage : Score or Iterable[Note]
+        The musical passage to be windowed
+    size : float
+        The size of each window (time units)
+    step : float, default=1.0
+        The step size to take between windows (time units).
         For example, if step is 0.1, then a given slice will start 0.1 time units
         after the previous slice started. Note that if step is smaller than size,
-        successive slices will overlap.
-
-    align :
+        successive windows will overlap
+    align : str, default="right"
         Each generated window has a `time` property that points to a
         particular timepoint in the musical passage. The `align` parameter determines
-        how the window is aligned to this timepoint.
-
-        - "left" : the window starts at ``slice.time``
-        - "center" : ``window.time`` corresponds to the midpoint of the window
-        - "right" : the window finishes at ``slice.time``
-
-    start :
-        The desired time of the first slice (defaults to 0.0).
-
-    end :
+        how the window is aligned to this timepoint:
+        - "left": the window starts at ``window.time``
+        - "center": ``window.time`` corresponds to the midpoint of the window
+        - "right": the window finishes at ``window.time``
+    start : float, default=0.0
+        The desired time of the first window
+    end : float, optional
         If set, the windowing will stop once the end time is reached.
         Following the behaviour of Python's built-in range function,
-        ``end`` is not treated inclusively, i.e. the last slice will
-        not include ``end``.
+        ``end`` is not treated inclusively, i.e. the last window will
+        not include ``end``
+    times : Iterable[float], optional
+        Optional iterable of times to generate windows for. If provided,
+        `start` and `end` are ignored
 
-    times :
-        Optional iterable of times to generate slices for. If provided,
-        `start` and `end` are ignored.
+    Returns
+    -------
+    Iterator[Window]
+        Iterator over the windows
     """
     if isinstance(passage, Score):
         if not passage.is_flattened_and_collapsed():
