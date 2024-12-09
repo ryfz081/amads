@@ -1,12 +1,9 @@
-from pytest import approx, fixture
-from musmart.algorithm.slice import get_timepoints, salami_slice
-from musmart.core.basics import Note
-from musmart.io.pt_midi_import import partitura_midi_import
-from musmart.music import example
+from pytest import approx
+from musmart.algorithm.slice.salami import Timepoint, salami_slice
 
 
 def test_timepoints_twochan(twochan_notes):
-    timepoints = get_timepoints(twochan_notes, time_n_digits=6)
+    timepoints = Timepoint.from_notes(twochan_notes, time_n_digits=6)
     assert len([t for t in timepoints if len(t.note_ons) > 0]) == 16
 
 
