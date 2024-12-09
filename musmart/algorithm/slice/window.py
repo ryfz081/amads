@@ -33,7 +33,10 @@ class Window(Slice):
     candidate_notes : Iterable[Note]
         Notes to consider for inclusion in this window, sorted by offset and pitch
     skip : int, default=0
-        Index to start searching from in candidate_notes
+        Index to start searching from in candidate_notes. This is used to optimize
+        performance when iterating through multiple windows - each window can tell
+        the next window which notes it can safely skip because they end before the
+        window starts.
     """
     def __init__(
             self,
