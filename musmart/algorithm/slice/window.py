@@ -15,6 +15,7 @@ from .slice import Slice
 from ...core.basics import Note, Score
 from ...utils import float_range
 
+
 class Window(Slice):
     """A fixed-size window of a musical score.
 

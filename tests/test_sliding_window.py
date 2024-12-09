@@ -6,7 +6,7 @@ from musmart.core.basics import Score, Note
 from musmart.algorithm.slice.window import sliding_window
 
 
-def test_window_slice(twochan_score: Score, twochan_notes: Iterable[Note]):
+def test_sliding_window(twochan_score: Score, twochan_notes: Iterable[Note]):
     size = 4.0  # one bar
     step = 0.01
 
