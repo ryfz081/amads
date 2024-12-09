@@ -3,7 +3,7 @@ from typing import Iterable
 from pytest import approx
 
 from musmart.core.basics import Score, Note
-from musmart.algorithm.slice.salami import window_slice
+from musmart.algorithm.slice.window import window_slice
 
 
 def test_window_slice(twochan_score: Score, twochan_notes: Iterable[Note]):

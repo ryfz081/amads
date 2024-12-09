@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Union
 
-from . import Slice
+from .slice import Slice
 from ...core.basics import Note, Score
 
 
