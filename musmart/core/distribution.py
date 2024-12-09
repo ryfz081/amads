@@ -16,7 +16,7 @@ Usage:
     [Add basic usage examples or import statements]
 """
 import matplotlib
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg') # We should not force this on users as it is not compatible with all backends
 import matplotlib.pyplot as plt
 from matplotlib import figure
 from matplotlib import patches
@@ -35,8 +35,8 @@ class Distribution:
 
         distribution_type: str - The type of distribution, one of
             "pitch_class", "interval", "pitch_class_interval", "duration",
-            "interval_size", "interval_direction", "duration", 
-            "pitch_class_transition", "interval_transition", 
+            "interval_size", "interval_direction", "duration",
+            "pitch_class_transition", "interval_transition",
             "duration_transition", "key_correlation"
 
         dimensions: List[int] - The dimensions of the distribution, e.g.
@@ -56,10 +56,10 @@ class Distribution:
     """
 
     def __init__(self, name: str, data: List[Any], distribution_type: str,
-                 dimensions: List[int], 
-                 x_categories: List[Union[int, float, str]], 
+                 dimensions: List[int],
+                 x_categories: List[Union[int, float, str]],
                  x_label: str,
-                 y_categories: Union[List[Union[int, float, str]], None], 
+                 y_categories: Union[List[Union[int, float, str]], None],
                  y_label: str):
         self.name = name
         self.data = data
@@ -83,7 +83,7 @@ class Distribution:
         Returns:
             figure.Figure - A matplotlib figure object.
         """
-        
+
         fig, ax = plt.subplots()
         ax.bar(self.x_categories, self.data, color=color)
         ax.set_xlabel(self.x_label)
