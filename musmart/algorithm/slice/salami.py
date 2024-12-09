@@ -1,6 +1,17 @@
-"""
+"""Salami slice algorithm for segmenting musical scores.
 
-Author: Peter Harrison
+This module implements the salami slice algorithm, which segments a musical score
+into vertical slices at each note onset and offset. Each slice contains all notes
+that are sounding at that point in time.
+
+Notes
+-----
+The algorithm is named after the way a salami sausage is sliced into thin,
+vertical segments.
+
+Author
+------
+Peter Harrison
 """
 
 from collections import defaultdict
@@ -13,6 +24,19 @@ from ...core.basics import Note, Score
 
 @dataclass
 class Timepoint:
+    """A point in time with associated note events.
+
+    Parameters
+    ----------
+    time : float
+        The time in seconds
+    note_ons : list[Note]
+        Notes that start at this timepoint
+    note_offs : list[Note]
+        Notes that end at this timepoint
+    sounding_notes : set[Note]
+        All notes that are sounding at this timepoint
+    """
     time: float
     note_ons: list[Note] = field(default_factory=list)
     note_offs: list[Note] = field(default_factory=list)
@@ -20,10 +44,31 @@ class Timepoint:
 
     @property
     def last_note_end(self):
+        """Get the end time of the last note sounding at this timepoint.
+
+        Returns
+        -------
+        float
+            The end time
+        """
         return max(n.offset + n.dur for n in self.sounding_notes)
 
     @classmethod
     def from_notes(cls, notes: List[Note], time_n_digits: Optional[int] = None) -> List["Timepoint"]:
+        """Create a sequence of timepoints from a list of notes.
+
+        Parameters
+        ----------
+        notes : List[Note]
+            The notes to process
+        time_n_digits : int, optional
+            Number of decimal places to round times to
+
+        Returns
+        -------
+        List[Timepoint]
+            Sequence of timepoints with associated note events
+        """
         note_ons = defaultdict(list)
         note_offs = defaultdict(list)
 
@@ -67,6 +112,26 @@ def salami_slice(
         include_note_end_slices: bool = True,
         min_slice_duration: float = 0.01,
 ) -> List[Slice]:
+    """Segment a musical passage into vertical slices at note onsets and offsets ('salami slices').
+
+    Parameters
+    ----------
+    passage : Score or Iterable[Note]
+        The musical passage to slice
+    remove_duplicated_pitches : bool, default=True
+        Whether to remove duplicate pitches within each slice
+    include_empty_slices : bool, default=False
+        Whether to include slices with no sounding notes
+    include_note_end_slices : bool, default=True
+        Whether to create slices at note ends
+    min_slice_duration : float, default=0.01
+        Minimum duration for a slice to be included
+
+    Returns
+    -------
+    List[Slice]
+        The sequence of vertical slices
+    """
     if isinstance(passage, Score):
         notes = passage.flatten(collapse=True).find_all(Note)
     else:
