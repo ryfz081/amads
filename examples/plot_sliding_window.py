@@ -65,7 +65,6 @@ plt.figure(figsize=(10, 6))
 plt.plot(times, mean_pitch_heights)
 plt.xlabel('Time')
 plt.ylabel('Mean pitch height')
-plt.legend()
 plt.show()
 
 # %%
