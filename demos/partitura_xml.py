@@ -1,7 +1,8 @@
 # partitura_xml_test.py - some tests for partitura_xml_import.py
 
-from musmart.pt_xml_import import partitura_xml_import
-from musmart import example
+from amads.music import example
+from amads.pt_xml_import import partitura_xml_import
+
 my_xml_file = None  # defaults to pt.EXAMPLE_MUSICXML
 # my_xml_file = "../music/xml/ex1.xml"
 # my_xml_file = "../music/xml/ex2.xml"

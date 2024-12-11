@@ -1,7 +1,8 @@
 from matplotlib import pyplot as plt
-from musmart.pt_midi_import import partitura_midi_import
-from musmart.pianoroll import pianoroll
-from musmart import example
+
+from amads.music import example
+from amads.pianoroll import pianoroll
+from amads.pt_midi_import import partitura_midi_import
 
 my_midi_file = example.fullpath("midi/sarabande.mid")
 myscore = partitura_midi_import(my_midi_file, ptprint=False)

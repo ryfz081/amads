@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "musmart"
+name = "amads"
 version = "0.1.0"
 description = "A toolkit for symbolic music analysis"
 readme = "README.md"
@@ -11,7 +11,7 @@ authors = [
     { name = "The AMADS team", email = "email@example.com" }
 ]
 license = { text = "TODO" }  # Update with your actual license
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -33,9 +33,12 @@ dev = [
     "sphinx",
     "sphinx-book-theme",
     "sphinx-autodoc-typehints",
-    "myst-parser"
+    "myst-parser",
+    "pre-commit",
+    "pytest-cov",
 ]
 test = [
+    "pretty_midi",
     "pytest>=7.0.0",
 ]
 
@@ -43,4 +46,4 @@ test = [
 "Homepage" = "https://github.com/music-computing/toolkit"  # Update with your repo URL
 
 [tool.setuptools]
-packages = ["musmart"]
+packages = ["amads"]

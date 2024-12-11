@@ -3,9 +3,11 @@ Test the `ivdirdist1` function
 """
 
 import matplotlib.pyplot as plt
-from musmart.pt_midi_import import partitura_midi_import
-from musmart.ivdirdist1 import ivdirdist1
-from musmart import example
+
+from amads.ivdirdist1 import ivdirdist1
+from amads.music import example
+from amads.pt_midi_import import partitura_midi_import
+
 my_midi_file = example.fullpath("/midi/sarabande.mid")
 
 print("------- input from partitura")
@@ -20,14 +22,28 @@ print(id)
 
 # Plot the interval distribution
 interval_names = [
-    'm2', 'M2', 'm3',
-    'M3', 'P4', 'd5', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'
+    "m2",
+    "M2",
+    "m3",
+    "M3",
+    "P4",
+    "d5",
+    "P5",
+    "m6",
+    "M6",
+    "m7",
+    "M7",
+    "P8",
 ]
-plt.bar(interval_names, height=[abs(i-0.5) if i != 0 else 0 for i in id], 
-        bottom=[min(0.5, i) if i != 0 else 0.5 for i in id], color='skyblue')
+plt.bar(
+    interval_names,
+    height=[abs(i - 0.5) if i != 0 else 0 for i in id],
+    bottom=[min(0.5, i) if i != 0 else 0.5 for i in id],
+    color="skyblue",
+)
 plt.ylim(0, 1)
-plt.xlabel('Interval')
-plt.ylabel('Probability')
-plt.title('Interval Distribution')
+plt.xlabel("Interval")
+plt.ylabel("Probability")
+plt.title("Interval Distribution")
 
 plt.show()
