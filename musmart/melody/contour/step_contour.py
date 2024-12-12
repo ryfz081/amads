@@ -203,15 +203,11 @@ class StepContour:
         """
         if len(set(self._contour)) == 1:
             return 0.0
-
-        try:
-            corr = np.corrcoef(
-                self._contour,
-                np.arange(self._step_contour_length)
-            )[0, 1]
-            return float(corr)
-        except Exception:
-            return None
+        corr = np.corrcoef(
+            self._contour,
+            np.arange(self._step_contour_length)
+        )[0, 1]
+        return float(corr)
 
     @property
     def local_variation(self) -> float:
