@@ -70,7 +70,7 @@ class StepContour:
             )
 
         self._step_contour_length = step_contour_length
-        self._contour = self._calculate_contour(pitches, durations)
+        self.contour = self._calculate_contour(pitches, durations)
 
     def _normalize_durations(self, durations: list[float]) -> list[float]:
         """Helper function to normalize note durations to fit within 4 bars of 4/4 time
@@ -157,18 +157,6 @@ class StepContour:
         return self._expand_to_vector(pitches, normalized_durations)
 
     @property
-    def contour(self) -> list[int]:
-        """Get the step contour vector.
-
-        Examples
-        --------
-        >>> sc = StepContour([60, 62], [1.0, 1.0], step_contour_length=4)
-        >>> sc.contour
-        [60, 60, 62, 62]
-        """
-        return self._contour
-
-    @property
     def global_variation(self) -> float:
         """Calculate the global variation of the step contour.
 
@@ -183,7 +171,7 @@ class StepContour:
         >>> round(sc.global_variation, 2)
         1.64
         """
-        return float(np.nanstd(self._contour))
+        return float(np.nanstd(self.contour))
 
     @property
     def global_direction(self) -> float:
@@ -201,10 +189,10 @@ class StepContour:
         >>> round(sc.global_direction, 3)
         0.943
         """
-        if len(set(self._contour)) == 1:
+        if len(set(self.contour)) == 1:
             return 0.0
         corr = np.corrcoef(
-            self._contour,
+            self.contour,
             np.arange(self._step_contour_length)
         )[0, 1]
         return float(corr)
@@ -224,6 +212,6 @@ class StepContour:
         >>> sc.local_variation
         0.06349206349206349
         """
-        pairs = list(zip(self._contour, self._contour[1:]))
+        pairs = list(zip(self.contour, self.contour[1:]))
         local_variation = sum(abs(c2 - c1) for c1, c2 in pairs) / len(pairs)
         return local_variation
