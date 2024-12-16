@@ -1,5 +1,6 @@
 """Calculates the Step Contour of a melody, along with related features, as implemented
 in the FANTASTIC toolbox of Müllensiefen (2009) [1].
+Exemplified in Steinbeck (1982) [2], Juhász (2000) [3], Eerola and Toiviainen (2004) [4].
 
 Examples
 --------
@@ -9,11 +10,11 @@ Examples
 >>> sc.contour[:8]  # First 8 values of 64-length contour
 [60, 60, 60, 60, 60, 60, 60, 60]
 >>> sc.global_variation  # Standard deviation of contour
-2.3974...
+2.3974
 >>> sc.global_direction  # Correlation with ascending line
-0.9746...
+0.9746
 >>> sc.local_variation  # Average absolute difference between adjacent values
-0.1111...
+0.1111
 """
 
 __author__ = "David Whyatt"
@@ -23,6 +24,7 @@ import numpy as np
 
 class StepContour:
     """Class for calculating and analyzing step contours of melodies.
+    Rests are considered as extending the duration of the previous note.
 
     Examples
     --------
@@ -56,6 +58,12 @@ class StepContour:
         ----------
         [1] Müllensiefen, D. (2009). Fantastic: Feature ANalysis Technology Accessing
         STatistics (In a Corpus): Technical Report v1.5
+        [2] W. Steinbeck, Struktur und Ähnlichkeit: Methoden automatisierter
+            Melodieanalyse. Bärenreiter, 1982.
+        [3] Juhász, Z. 2000. A model of variation in the music of a Hungarian ethnic
+            group. Journal of New Music Research 29(2):159-172.
+        [4] Eerola, T. & Toiviainen, P. (2004). MIDI Toolbox: MATLAB Tools for Music
+            Research. University of Jyväskylä: Kopijyvä, Jyväskylä, Finland.
 
         Examples
         --------
@@ -94,7 +102,7 @@ class StepContour:
         """
         total_duration = sum(durations)
         if total_duration == 0:
-            return durations
+            raise ValueError("Total duration is 0, cannot normalize")
 
         normalized = [
             self._step_contour_length * (duration / total_duration)
@@ -102,13 +110,15 @@ class StepContour:
         ]
         return normalized
 
+    @classmethod
     def _expand_to_vector(
-        self,
+        cls,
         pitches: list[int],
-        normalized_durations: list[float]
+        normalized_durations: list[float],
+        step_contour_length: int
     ) -> list[int]:
-        """Helper function to create a vector of length step_contour_length by repeating
-        each pitch value proportionally to its normalized duration.
+        """Helper function that resamples the melody to a vector of length
+        step_contour_length.
 
         Parameters
         ----------
@@ -116,6 +126,8 @@ class StepContour:
             List of pitch values
         normalized_durations : list[float]
             List of normalized duration values (should sum to step_contour_length)
+        step_contour_length : int
+            Length of the output step contour vector
 
         Returns
         -------
@@ -124,21 +136,41 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60], [1.0], step_contour_length=4)
-        >>> sc._expand_to_vector([60, 62], [2.0, 2.0])
+        >>> StepContour._expand_to_vector([60, 62], [2.0, 2.0], step_contour_length=4)
         [60, 60, 62, 62]
         """
-        result = []
-        for pitch, duration in zip(pitches, normalized_durations):
-            repetitions = round(duration)
-            result.extend([pitch] * repetitions)
+        if abs(sum(normalized_durations) - step_contour_length) > 1e-6:
+            raise ValueError(
+                f"The sum of normalized_durations ({sum(normalized_durations)}) must "
+                f"be equal to the step contour length ({step_contour_length})"
+            )
+        # We interpret the output list as a vector of pitch samples taken
+        # at times 0, 1, 2, ..., 63 where 63 = step_contour_length - 1
+        # and the length of the normalized melody is 64.
 
-        if len(result) > self._step_contour_length:
-            result = result[:self._step_contour_length]
-        elif len(result) < self._step_contour_length:
-            result.extend([result[-1]] * (self._step_contour_length - len(result)))
+        output_length = step_contour_length
+        output_pitches = [None for _ in range(output_length)]
+        output_times = list(range(output_length))
 
-        return result
+        output_index = 0
+        offset = 0.0
+
+        # Iterate over the input pitches and durations
+        for sounding_pitch, duration in zip(pitches, normalized_durations):
+            offset += duration
+
+            while True:
+                # Step through the output list, and populate any time slots that
+                # are occupied by the current note.
+                if output_index >= output_length:
+                    break
+                output_time = output_times[output_index]
+                if output_time >= offset:
+                    break
+                output_pitches[output_index] = sounding_pitch
+                output_index += 1
+
+        return output_pitches
 
     def _calculate_contour(
         self,
@@ -154,11 +186,16 @@ class StepContour:
         [60, 60, 62, 62]
         """
         normalized_durations = self._normalize_durations(durations)
-        return self._expand_to_vector(pitches, normalized_durations)
+        return self._expand_to_vector(
+            pitches,
+            normalized_durations,
+            self._step_contour_length
+        )
 
     @property
     def global_variation(self) -> float:
-        """Calculate the global variation of the step contour.
+        """Calculate the global variation of the step contour by taking the standard
+        deviation of the step contour vector.
 
         Returns
         -------
@@ -168,14 +205,15 @@ class StepContour:
         Examples
         --------
         >>> sc = StepContour([60, 62, 64], [1.0, 1.0, 1.0])
-        >>> round(sc.global_variation, 2)
+        >>> sc.global_variation
         1.64
         """
-        return float(np.nanstd(self.contour))
+        return float(np.std(self.contour))
 
     @property
     def global_direction(self) -> float:
-        """Calculate the global direction of the step contour.
+        """Calculate the global direction of the step contour by taking the correlation
+        between the step contour vector and an ascending linear function y = x.
 
         Returns
         -------
@@ -186,20 +224,27 @@ class StepContour:
         Examples
         --------
         >>> sc = StepContour([60, 62, 64], [1.0, 1.0, 1.0])
-        >>> round(sc.global_direction, 3)
+        >>> sc.global_direction
         0.943
+        >>> sc = StepContour([60, 60, 60], [1.0, 1.0, 1.0])
+        >>> sc.global_direction
+        0.0
+        >>> sc = StepContour([64, 62, 60], [1.0, 1.0, 1.0])  # Descending melody
+        >>> sc.global_direction
+        -0.943
         """
-        if len(set(self.contour)) == 1:
-            return 0.0
         corr = np.corrcoef(
             self.contour,
             np.arange(self._step_contour_length)
         )[0, 1]
+        if np.isnan(corr) and len(self.contour) > 1:
+            return 0.0
         return float(corr)
 
     @property
     def local_variation(self) -> float:
-        """Calculate the local variation of the step contour.
+        """Calculate the local variation of the step contour, by taking the mean
+        absolute difference between adjacent values.
 
         Returns
         -------
@@ -210,7 +255,7 @@ class StepContour:
         --------
         >>> sc = StepContour([60, 62, 64], [1.0, 1.0, 1.0])
         >>> sc.local_variation
-        0.06349206349206349
+        0.0634
         """
         pairs = list(zip(self.contour, self.contour[1:]))
         local_variation = sum(abs(c2 - c1) for c1, c2 in pairs) / len(pairs)
