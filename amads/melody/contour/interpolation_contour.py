@@ -1,5 +1,8 @@
 """Calculates the Interpolation Contour of a melody, along with related features, as
 implemented in the FANTASTIC toolbox of Müllensiefen (2009) [1].
+Includes a modified version of the FANTASTIC method that is better suited to short melodies
+than the original implementation. This 'AMADS' method defines turning points using reversals,
+and is the default method. All features are returned for either method.
 """
 
 __author__ = "David Whyatt"
