@@ -8,26 +8,30 @@ import numpy as np
 
 
 class InterpolationContour:
-    """Class for calculating and analyzing interpolation contours of melodies, according to
+    """Class for calculating and analyzing the interpolation contours of melodies, according to
     Müllensiefen (2009) [1]. This representation was first formalised by Steinbeck (1982)
     [2], and informed a varient of the present implementation in Müllensiefen & Frieler
     (2004) [3].
     """
 
-    def __init__(self, times: list[float], pitches: list[int]):
-        """Initialize with time and pitch values.
+    def __init__(self, pitches: list[int], times: list[float], method: str = "amads"):
+        """Initialize with pitch and time values.
 
         Parameters
         ----------
-        times : list[float]
-            Array of onset times in seconds
         pitches : list[int]
             Array of pitch values
+        times : list[float]
+            Array of onset times in seconds
+        method : str, optional
+            Method to use for contour calculation, either "fantastic" or "amads".
+            Defaults to "amads".
 
         Raises
         ------
         ValueError
             If times and pitches are not the same length
+            If method is not "fantastic" or "amads"
 
         Examples
         --------
@@ -39,7 +43,11 @@ class InterpolationContour:
         ...     0, 0.75, 1, 2, 3, 4, 6, 6.75, 7, 8, 9, 10,
         ...     12, 12.75, 13, 14, 15, 16, 17, 18, 18.75, 19, 20, 21
         ... ]
-        >>> ic = InterpolationContour(happy_birthday_times, happy_birthday_pitches)
+        >>> ic = InterpolationContour(
+        ...     happy_birthday_pitches,
+        ...     happy_birthday_times,
+        ...     method="fantastic",
+        ... )
         >>> ic.direction_changes
         0.6
         >>> ic.class_label
@@ -61,66 +69,53 @@ class InterpolationContour:
         of Melodic Similarity: Algorithmic vs. Human Judgments
         """
         if len(times) != len(pitches):
-            raise ValueError("Times and pitches must have the same length")
+            raise ValueError(
+                f"Times and pitches must have the same length, got {len(times)} and {len(pitches)}"
+            )
+        if method not in ["fantastic", "amads"]:
+            raise ValueError(
+                f"Method must be either 'fantastic' or 'amads', got {method}"
+            )
+
         self.times = times
         self.pitches = pitches
-        self.contour = self.calculate_interpolation_contour()
+        self.method = method
+        self.contour = self.calculate_interpolation_contour(pitches, times, method)
 
     @staticmethod
-    def _find_contour_extrema(pitches: list[int]) -> list[int]:
-        """Determine contour extremum notes (local minima and maxima, including endpoints).
+    def _is_turning_point_fantastic(pitches: list[int], i: int) -> bool:
+        """Helper method to determine if a point is a turning point in FANTASTIC method."""
+        return any(
+            [
+                (pitches[i - 1] < pitches[i] and pitches[i] > pitches[i + 1]),
+                (pitches[i - 1] > pitches[i] and pitches[i] < pitches[i + 1]),
+                (
+                    pitches[i - 1] == pitches[i]
+                    and pitches[i - 2] < pitches[i]
+                    and pitches[i] > pitches[i + 1]
+                ),
+                (
+                    pitches[i - 1] < pitches[i]
+                    and pitches[i] == pitches[i + 1]
+                    and pitches[i + 2] > pitches[i]
+                ),
+                (
+                    pitches[i - 1] == pitches[i]
+                    and pitches[i - 2] > pitches[i]
+                    and pitches[i] < pitches[i + 1]
+                ),
+                (
+                    pitches[i - 1] > pitches[i]
+                    and pitches[i] == pitches[i + 1]
+                    and pitches[i + 2] < pitches[i]
+                ),
+            ]
+        )
 
-        Excludes changing notes (notae cambiatae).
-
-        Parameters
-        ----------
-        pitches : list[int]
-            List of MIDI pitch values
-
-        Returns
-        -------
-        list[int]
-            Array of indices corresponding to extrema points in the melody
-        """
-        extrema_indices = []
-        n = len(pitches)
-
-        # Always include first and last notes
-        extrema_indices.append(0)
-
-        # Find local extrema
-        for i in range(1, n - 1):
-            # Check previous and next notes
-            prev_pitch = pitches[i - 1]
-            curr_pitch = pitches[i]
-            next_pitch = pitches[i + 1]
-
-            # Skip changing notes (where adjacent pitches are equal)
-            if prev_pitch == next_pitch:
-                continue
-
-            # Check if it's a peak or valley
-            is_peak = prev_pitch < curr_pitch and next_pitch < curr_pitch
-            is_valley = prev_pitch > curr_pitch and next_pitch > curr_pitch
-
-            if is_peak or is_valley:
-                # Additional check for equal adjacent notes
-                is_extremum = True
-                if i > 1 and prev_pitch == curr_pitch:
-                    is_extremum = (
-                        (pitches[i - 2] - curr_pitch) * (next_pitch - curr_pitch)
-                    ) < 0
-                if i < n - 2 and next_pitch == curr_pitch:
-                    is_extremum = (
-                        (prev_pitch - curr_pitch) * (pitches[i + 2] - curr_pitch)
-                    ) < 0
-                if is_extremum:
-                    extrema_indices.append(i)
-
-        extrema_indices.append(n - 1)  # Add last note
-        return extrema_indices
-
-    def calculate_interpolation_contour(self) -> list[float]:
+    @staticmethod
+    def calculate_interpolation_contour(
+        pitches: list[int], times: list[float], method: str = "amads"
+    ) -> list[float]:
         """Calculate the interpolation contour representation of a melody [1].
 
         Returns
@@ -128,73 +123,47 @@ class InterpolationContour:
         list[float]
             Array containing the interpolation contour representation
         """
-        # Find candidate points
-        candidate_points_pitch = [self.pitches[0]]  # Start with first pitch
-        candidate_points_time = [self.times[0]]  # Start with first time
+        if method == "fantastic":
+            return InterpolationContour._calculate_fantastic_contour(pitches, times)
 
-        if len(self.pitches) in [3, 4]:
-            # Special case for very short melodies
-            for i in range(1, len(self.pitches) - 1):
-                if (
-                    self.pitches[i] > self.pitches[i - 1]
-                    and self.pitches[i] > self.pitches[i + 1]
-                ) or (
-                    self.pitches[i] < self.pitches[i - 1]
-                    and self.pitches[i] < self.pitches[i + 1]
-                ):
-                    candidate_points_pitch.append(self.pitches[i])
-                    candidate_points_time.append(self.times[i])
+        return InterpolationContour._calculate_amads_contour(pitches, times)
+
+    @staticmethod
+    def _calculate_fantastic_contour(
+        pitches: list[int], times: list[float]
+    ) -> list[float]:
+        # Find candidate points
+        candidate_points_pitch = [pitches[0]]  # Start with first pitch
+        candidate_points_time = [times[0]]  # Start with first time
+
+        # Special case for very short melodies
+        if len(pitches) in [3, 4]:
+            for i in range(1, len(pitches) - 1):
+                if InterpolationContour._is_turning_point_fantastic(pitches, i):
+                    candidate_points_pitch.append(pitches[i])
+                    candidate_points_time.append(times[i])
         else:
             # For longer melodies
-            for i in range(2, len(self.pitches) - 2):
-                if (
-                    (
-                        self.pitches[i - 1] < self.pitches[i]
-                        and self.pitches[i] > self.pitches[i + 1]
-                    )
-                    or (
-                        self.pitches[i - 1] > self.pitches[i]
-                        and self.pitches[i] < self.pitches[i + 1]
-                    )
-                    or (
-                        self.pitches[i - 1] == self.pitches[i]
-                        and self.pitches[i - 2] < self.pitches[i]
-                        and self.pitches[i] > self.pitches[i + 1]
-                    )
-                    or (
-                        self.pitches[i - 1] < self.pitches[i]
-                        and self.pitches[i] == self.pitches[i + 1]
-                        and self.pitches[i + 2] > self.pitches[i]
-                    )
-                    or (
-                        self.pitches[i - 1] == self.pitches[i]
-                        and self.pitches[i - 2] > self.pitches[i]
-                        and self.pitches[i] < self.pitches[i + 1]
-                    )
-                    or (
-                        self.pitches[i - 1] > self.pitches[i]
-                        and self.pitches[i] == self.pitches[i + 1]
-                        and self.pitches[i + 2] < self.pitches[i]
-                    )
-                ):
-                    candidate_points_pitch.append(self.pitches[i])
-                    candidate_points_time.append(self.times[i])
+            for i in range(2, len(pitches) - 2):
+                if InterpolationContour._is_turning_point_fantastic(pitches, i):
+                    candidate_points_pitch.append(pitches[i])
+                    candidate_points_time.append(times[i])
 
         # Initialize turning points with first note
-        turning_points_pitch = [self.pitches[0]]
-        turning_points_time = [self.times[0]]
+        turning_points_pitch = [pitches[0]]
+        turning_points_time = [times[0]]
 
         # Find turning points
         if len(candidate_points_pitch) > 2:
-            for i in range(1, len(self.pitches) - 1):
-                if self.times[i] in candidate_points_time:
-                    if self.pitches[i - 1] != self.pitches[i + 1]:
-                        turning_points_pitch.append(self.pitches[i])
-                        turning_points_time.append(self.times[i])
+            for i in range(1, len(pitches) - 1):
+                if times[i] in candidate_points_time:
+                    if pitches[i - 1] != pitches[i + 1]:
+                        turning_points_pitch.append(pitches[i])
+                        turning_points_time.append(times[i])
 
         # Add last note
-        turning_points_pitch.append(self.pitches[-1])
-        turning_points_time.append(self.times[-1])
+        turning_points_pitch.append(pitches[-1])
+        turning_points_time.append(times[-1])
 
         # Calculate gradients
         gradients = np.diff(turning_points_pitch) / np.diff(turning_points_time)
@@ -210,6 +179,55 @@ class InterpolationContour:
 
         return [float(x) for x in interpolation_contour]
 
+    @staticmethod
+    def _calculate_amads_contour(pitches: list[int], times: list[float]) -> list[float]:
+        reversals_pitches = []
+        reversals_time = []
+        reversals_pitches.append(pitches[0])
+        reversals_time.append(times[0])
+
+        # Handle repeated notes - keep only middle note when 3 consecutive notes are equal
+        for i in range(2, len(pitches)):
+            if pitches[i - 2] == pitches[i - 1] == pitches[i]:
+                reversals_pitches.append(pitches[i - 1])
+                reversals_time.append(times[i - 1])
+
+        # Find reversals
+        for i in range(2, len(pitches)):
+            if (
+                pitches[i] < pitches[i - 1] > pitches[i - 2]
+                or pitches[i] > pitches[i - 1] < pitches[i - 2]
+            ):
+                reversals_pitches.append(pitches[i - 1])
+                reversals_time.append(times[i - 1])
+
+        # Add last note
+        reversals_pitches.append(pitches[-1])
+        reversals_time.append(times[-1])
+
+        # Calculate gradients
+        gradients = np.diff(reversals_pitches) / np.diff(reversals_time)
+
+        # Calculate durations
+        durations = np.diff(reversals_time)
+
+        # Create weighted gradients vector
+        samples_per_duration = np.round(durations * 10).astype(
+            int
+        )  # 10 samples per second
+
+        # Can't have a contour with less than 2 points
+        if len(reversals_pitches) < 2:
+            return [0.0]
+
+        # If there are only 2 points, just use the gradient between them
+        if len(reversals_pitches) == 2:
+            gradient = reversals_pitches[1] - reversals_pitches[0]
+            return [float(gradient / (reversals_time[1] - reversals_time[0]))]
+
+        interpolation_contour = np.repeat(gradients, samples_per_duration)
+        return [float(x) for x in interpolation_contour]
+
     @property
     def global_direction(self) -> int:
         """Calculate the global direction of the interpolation contour by taking
@@ -219,6 +237,23 @@ class InterpolationContour:
         -------
         int
             1 if sum is positive, 0 if sum is zero, -1 if sum is negative
+
+        Examples
+        --------
+        Flat overall contour direction (returns the same using FANTASTIC method)
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4])
+        >>> ic.global_direction
+        0
+
+        Upwards contour direction (returns the same using FANTASTIC method)
+        >>> ic = InterpolationContour([60, 62, 64, 65, 67], [0, 1, 2, 3, 4])
+        >>> ic.global_direction
+        1
+
+        Downwards contour direction (returns the same using FANTASTIC method)
+        >>> ic = InterpolationContour([67, 65, 67, 62, 60], [0, 1, 2, 3, 4])
+        >>> ic.global_direction
+        -1
         """
         return int(np.sign(sum(self.contour)))
 
@@ -230,6 +265,18 @@ class InterpolationContour:
         -------
         float
             Mean of the absolute gradient values
+
+        Examples
+        --------
+        Steps of 2 semitones per second
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4])
+        >>> ic.mean_gradient
+        2.0
+
+        FANTASTIC method returns 0.0 for this example
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4], method="fantastic")
+        >>> ic.mean_gradient
+        0.0
         """
         return float(np.mean(np.abs(self.contour)))
 
@@ -240,13 +287,43 @@ class InterpolationContour:
         Returns
         -------
         float
-            Standard deviation of the gradient values
+            Standard deviation of the gradient values (by default, using Bessel's correction)
+
+        Examples
+        --------
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4])
+        >>> ic.gradient_std
+        2.0254...
+
+        FANTASTIC method returns 0.0 for this example
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4], method="fantastic")
+        >>> ic.gradient_std
+        0.0
         """
         return float(np.std(self.contour, ddof=1))
 
     @property
     def direction_changes(self) -> float:
-        """Calculate the ratio of direction changes in the interpolation contour."""
+        """Calculate the ratio of the number of changes in contour direction relative to the number
+        of interpolated gradient values.
+
+        Returns
+        -------
+        float
+            Ratio of the number of changes in contour direction relative to the number
+            of interpolated gradient values
+
+        Examples
+        --------
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4])
+        >>> ic.direction_changes
+        1.0
+
+        FANTASTIC method returns 0.0 for this example
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4], method="fantastic")
+        >>> ic.direction_changes
+        0.0
+        """
         # Convert contour to numpy array for element-wise multiplication
         contour_array = np.array(self.contour)
 
@@ -271,7 +348,8 @@ class InterpolationContour:
         """Classify an interpolation contour into gradient categories.
 
         The contour is sampled at 4 equally spaced points and each gradient is
-        normalized and classified into one of 5 categories:
+        normalized to units of pitch change per second (scaled to 1 semitone per 0.25 seconds.)
+        The result is then classified into one of 5 categories:
 
         - 'a': Strong downward (-2) - normalized gradient <= -1.45
         - 'b': Downward (-1) - normalized gradient between -1.45 and -0.45
@@ -284,6 +362,18 @@ class InterpolationContour:
         str
             String of length 4 containing letters a-e representing the gradient
             categories at 4 equally spaced points in the contour
+
+        Examples
+        --------
+        Upwards, then downwards contour
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4])
+        >>> ic.class_label
+        'ddbb'
+
+        FANTASTIC method returns 'cccc' for this example, as though the contour is flat
+        >>> ic = InterpolationContour([60, 62, 64, 62, 60], [0, 1, 2, 3, 4], method="fantastic")
+        >>> ic.class_label
+        'cccc'
         """
         # Sample the contour at 4 equally spaced points
         # Get 4 equally spaced indices
@@ -294,21 +384,21 @@ class InterpolationContour:
         sampled_points = [self.contour[i] for i in indices]
 
         # Normalize the gradients to a norm where value of 1 corresponds to a semitone
-        # change in pitch over 0.25 seconds. Given that base pitch and time units are
-        # 1 second and 1 semitone respectively, just divide by 4
+        # change in pitch over 0.25 seconds.
+        # Given that base pitch and time units are 1 second and 1 semitone respectively,
+        # just divide by 4
         norm_gradients = np.array(sampled_points) * 0.25
-
-        classes = []
+        classes = ""
         for grad in norm_gradients:
             if grad <= -1.45:
-                classes.append("a")  # strong down
+                classes += "a"  # strong down
             elif -1.45 < grad <= -0.45:
-                classes.append("b")  # down
+                classes += "b"  # down
             elif -0.45 < grad < 0.45:
-                classes.append("c")  # flat
+                classes += "c"  # flat
             elif 0.45 <= grad < 1.45:
-                classes.append("d")  # up
+                classes += "d"  # up
             else:
-                classes.append("e")  # strong up
+                classes += "e"  # strong up
 
-        return "".join(classes)
+        return classes
