@@ -314,7 +314,7 @@ class InterpolationContour:
         -------
         float
             Ratio of the number of changes in contour direction relative to the number
-            of interpolated gradient values
+            of different interpolated gradient values
 
         Examples
         --------
@@ -329,7 +329,7 @@ class InterpolationContour:
         """
         # Convert contour to numpy array for element-wise multiplication
         contour_array = np.array(self.contour)
-
+        print(contour_array)
         # Calculate products of consecutive gradients
         consecutive_products = contour_array[:-1] * contour_array[1:]
 
