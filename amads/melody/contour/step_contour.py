@@ -1,20 +1,6 @@
 """Calculates the Step Contour of a melody, along with related features, as implemented
 in the FANTASTIC toolbox of Müllensiefen (2009) [1].
 Exemplified in Steinbeck (1982) [2], Juhász (2000) [3], Eerola and Toiviainen (2004) [4].
-
-Examples
---------
->>> pitches = [60, 62, 64, 65, 67]  # C4, D4, E4, F4, G4
->>> onsets = [0.0, 1.0, 2.0, 3.0, 4.0]  # Notes start at regular intervals
->>> sc = StepContour(pitches, onsets)
->>> sc.contour[:8]  # First 8 values of 64-length contour
-[60, 60, 60, 60, 60, 60, 60, 60]
->>> sc.global_variation  # Standard deviation of contour
-2.3974
->>> sc.global_direction  # Correlation with ascending line
-0.9746
->>> sc.local_variation  # Average absolute difference between adjacent values
-0.1111
 """
 
 __author__ = "David Whyatt"
@@ -33,6 +19,17 @@ class StepContour:
     >>> sc = StepContour(pitches, onsets)
     >>> len(sc.contour)  # Default length is 64
     64
+    >>> pitches = [60, 62, 64, 65, 67]  # C4, D4, E4, F4, G4
+    >>> onsets = [0.0, 1.0, 2.0, 3.0, 4.0]  # Notes start at regular intervals
+    >>> sc = StepContour(pitches, onsets)
+    >>> sc.contour[:8]  # First 8 values of 64-length contour
+    [60, 60, 60, 60, 60, 60, 60, 60]
+    >>> sc.global_variation  # Standard deviation of contour
+    2.3974
+    >>> sc.global_direction  # Correlation with ascending line
+    0.9746
+    >>> sc.local_variation  # Average absolute difference between adjacent values
+    0.1111
     """
 
     _step_contour_length = 64
@@ -41,7 +38,7 @@ class StepContour:
         self,
         pitches: list[int],
         onsets: list[float],
-        step_contour_length: int = _step_contour_length
+        step_contour_length: int = _step_contour_length,
     ):
         """Initialize StepContour with melody data.
 
@@ -122,7 +119,7 @@ class StepContour:
         cls,
         pitches: list[int],
         normalized_durations: list[float],
-        step_contour_length: int
+        step_contour_length: int,
     ) -> list[int]:
         """Helper function that resamples the melody to a vector of length
         step_contour_length.
@@ -180,9 +177,7 @@ class StepContour:
         return output_pitches
 
     def _calculate_contour(
-        self,
-        pitches: list[int],
-        durations: list[float]
+        self, pitches: list[int], durations: list[float]
     ) -> list[int]:
         """Calculate the step contour from input pitches and durations.
 
@@ -194,9 +189,7 @@ class StepContour:
         """
         normalized_durations = self._normalize_durations(durations)
         return self._expand_to_vector(
-            pitches,
-            normalized_durations,
-            self._step_contour_length
+            pitches, normalized_durations, self._step_contour_length
         )
 
     @property
@@ -240,10 +233,7 @@ class StepContour:
         >>> sc.global_direction
         -0.943
         """
-        corr = np.corrcoef(
-            self.contour,
-            np.arange(self._step_contour_length)
-        )[0, 1]
+        corr = np.corrcoef(self.contour, np.arange(self._step_contour_length))[0, 1]
         if np.isnan(corr) and len(self.contour) > 1:
             return 0.0
         return float(corr)
