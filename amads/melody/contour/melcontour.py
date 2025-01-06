@@ -15,7 +15,7 @@ Reference(s) notes:
 Keep in mind this reference does not reference a particular algorithm,
 but rather a series of experiments that were done.
 This implementation was ported from the matlab precursor to this library,
-which was written by the same author
+which was written by the same author as in the paper.
 
 Back to my rambling:
 Output problems... how do we get time in seconds...
