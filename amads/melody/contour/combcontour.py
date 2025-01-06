@@ -1,4 +1,5 @@
 """
+Begin rambling:
 There is some trouble for deciding the output for combcontour
 Namely, we have a similar problem to when we implemented boundary
 and segment_gestalt. 
@@ -6,6 +7,14 @@ We don't have a total ordering in our score representation, so
 a matrix representation is probably not going to work (?) unless
 I finesse a key into the return value.
 
+combcontour(score) -> notes, contour_matrix
+
+Reference:
+    Marvin, E. W. & Laprade, P. A. (1987). Relating music contours: 
+        Extensions of a theory for contour. Journal of Music Theory,
+        31(2), 225-267.
+
+Continue Rambling:
 Observe that we are currently dealing with monophonic melodies,
 so we can use offsets to work this.
 

@@ -1,10 +1,23 @@
 """
+Begin rambling:
 We cannot add options to toggle information on and off when the information
 does not exist in score. 
 
 melcontour(score, res (int describing step size)) -> contour 
 where contour is list((sampling_tick (in beats), pitch))
 
+Reference(s):
+    Eerola, T., Himberg, T., Toiviainen, P., & Louhivuori, J. (2006). 
+        Perceived complexity of Western and African folk melodies by Western 
+        and African listeners. Psychology of Music, 34(3), 341-375.
+
+Reference(s) notes:
+Keep in mind this reference does not reference a particular algorithm,
+but rather a series of experiments that were done.
+This implementation was ported from the matlab precursor to this library,
+which was written by the same author
+
+Back to my rambling:
 Output problems... how do we get time in seconds...
 Since we can't obtain said information from score, it is prudent for us to
 introduce output postprocessing that introduce other data structures of information
