@@ -18,13 +18,13 @@ class StepContour:
     Examples
     --------
     >>> pitches = [60, 64, 67]  # C4, E4, G4
-    >>> onsets = [0.0, 2.0, 3.0]  # First note is 2 beats, others are 1 beat
-    >>> sc = StepContour(pitches, onsets)
+    >>> durations = [2.0, 1.0, 1.0]  # First note is 2 beats, others are 1 beat
+    >>> sc = StepContour(pitches, durations)
     >>> len(sc.contour)  # Default length is 64
     64
     >>> pitches = [60, 62, 64, 65, 67]  # C4, D4, E4, F4, G4
-    >>> onsets = [0.0, 1.0, 2.0, 3.0, 4.0]  # Notes start at regular intervals
-    >>> sc = StepContour(pitches, onsets)
+    >>> durations = [1.0, 1.0, 1.0, 1.0, 1.0]  # Notes have equal durations
+    >>> sc = StepContour(pitches, durations)
     >>> sc.contour[:8]  # First 8 values of 64-length contour
     [60, 60, 60, 60, 60, 60, 60, 60]
     >>> sc.global_variation  # Standard deviation of contour
@@ -40,7 +40,7 @@ class StepContour:
     def __init__(
         self,
         pitches: list[int],
-        onsets: list[float],
+        durations: list[float],
         step_contour_length: int = _step_contour_length,
     ):
         """Initialize StepContour with melody data.
@@ -49,8 +49,8 @@ class StepContour:
         ----------
         pitches : list[int]
             List of pitch values
-        onsets : list[float]
-            List of onset times measured in tatums
+        durations : list[float]
+            List of note durations measured in tatums
         step_contour_length : int, optional
             Length of the output step contour vector (default is 64)
 
@@ -67,22 +67,15 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60, 62], [0.0, 2.0], step_contour_length=4)
+        >>> sc = StepContour([60, 62], [2.0, 2.0], step_contour_length=4)
         >>> sc.contour
         [60, 60, 62, 62]
         """
-        if len(pitches) != len(onsets):
+        if len(pitches) != len(durations):
             raise ValueError(
                 f"The length of pitches (currently {len(pitches)}) must be equal to "
-                f"the length of onsets (currently {len(onsets)})"
+                f"the length of durations (currently {len(durations)})"
             )
-
-        # Calculate durations from onsets
-        durations = []
-        for i in range(len(onsets) - 1):
-            durations.append(onsets[i + 1] - onsets[i])
-        # Add final duration (assume same as previous or 1.0 if first note)
-        durations.append(durations[-1] if durations else 1.0)
 
         self._step_contour_length = step_contour_length
         self.contour = self._calculate_contour(pitches, durations)
@@ -103,7 +96,7 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60], [0.0])
+        >>> sc = StepContour([60], [1.0])
         >>> sc._normalize_durations([2.0, 2.0])
         [32.0, 32.0]
         """
@@ -186,7 +179,7 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60, 62], [0.0, 2.0], step_contour_length=4)
+        >>> sc = StepContour([60, 62], [2.0, 2.0], step_contour_length=4)
         >>> sc._calculate_contour([60, 62], [2.0, 2.0])
         [60, 60, 62, 62]
         """
@@ -207,7 +200,7 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60, 62, 64], [0.0, 1.0, 2.0])
+        >>> sc = StepContour([60, 62, 64], [1.0, 1.0, 1.0])
         >>> sc.global_variation
         1.64
         """
@@ -226,13 +219,13 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60, 62, 64], [0.0, 1.0, 2.0])
+        >>> sc = StepContour([60, 62, 64], [1.0, 1.0, 1.0])
         >>> sc.global_direction
         0.943
-        >>> sc = StepContour([60, 60, 60], [0.0, 1.0, 2.0])
+        >>> sc = StepContour([60, 60, 60], [1.0, 1.0, 1.0])
         >>> sc.global_direction
         0.0
-        >>> sc = StepContour([64, 62, 60], [0.0, 1.0, 2.0])  # Descending melody
+        >>> sc = StepContour([64, 62, 60], [1.0, 1.0, 1.0])  # Descending melody
         >>> sc.global_direction
         -0.943
         """
@@ -253,7 +246,7 @@ class StepContour:
 
         Examples
         --------
-        >>> sc = StepContour([60, 62, 64], [0.0, 1.0, 2.0])
+        >>> sc = StepContour([60, 62, 64], [1.0, 1.0, 1.0])
         >>> sc.local_variation
         0.0634
         """
