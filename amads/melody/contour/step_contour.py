@@ -10,7 +10,10 @@ import numpy as np
 
 class StepContour:
     """Class for calculating and analyzing the step contour of a melody.
-    Rests are considered as extending the duration of the previous note.
+    A step contour is a list of MIDI pitch values, repeated proportionally to the
+    duration (measured in tatums) of each note relative to the total melody length.
+    This list is normalized to a user defined length, defaulting to 64 steps as used in
+    FANTASTIC. Rests are considered as extending the duration of the previous note.
 
     Examples
     --------
