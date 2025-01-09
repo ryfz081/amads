@@ -15,6 +15,9 @@ class InterpolationContour:
     Müllensiefen (2009) [1]. This representation was first formalised by Steinbeck (1982)
     [2], and informed a varient of the present implementation in Müllensiefen & Frieler
     (2004) [3].
+    An interpolation contour is produced by first identifying turning points in the melody,
+    and then interpolating a linear gradient between each turning point. The resulting list
+    of values represents the gradient of the melody at evenly spaced points in time.
     """
 
     def __init__(self, pitches: list[int], times: list[float], method: str = "amads"):
@@ -29,6 +32,9 @@ class InterpolationContour:
         method : str, optional
             Method to use for contour calculation, either "fantastic" or "amads".
             Defaults to "amads".
+            The FANTASTIC method is the original implementation, and identifies turning points
+            using contour extrema via a series of rules. The AMADS method instead identifies
+            reversals for all melody lengths, and is the default method.
 
         Raises
         ------
@@ -183,17 +189,29 @@ class InterpolationContour:
         return [float(x) for x in interpolation_contour]
 
     @staticmethod
-    def _calculate_amads_contour(pitches: list[int], times: list[float]) -> list[float]:
-        reversals_pitches = []
-        reversals_time = []
-        reversals_pitches.append(pitches[0])
-        reversals_time.append(times[0])
+    def _remove_repeated_notes(
+        pitches: list[int], times: list[float]
+    ) -> tuple[list[int], list[float]]:
+        """Remove repeated notes, keeping only the middle occurrence."""
+        unique_pitches, unique_times = [], []
+        i = 0
+        while i < len(pitches):
+            start_idx = i
+            while i < len(pitches) - 1 and pitches[i + 1] == pitches[i]:
+                i += 1
+            mid_idx = start_idx + (i - start_idx) // 2
+            unique_pitches.append(pitches[mid_idx])
+            unique_times.append(times[mid_idx])
+            i += 1
+        return unique_pitches, unique_times
 
-        # Handle repeated notes - keep only middle note when 3 consecutive notes are equal
-        for i in range(2, len(pitches)):
-            if pitches[i - 2] == pitches[i - 1] == pitches[i]:
-                reversals_pitches.append(pitches[i - 1])
-                reversals_time.append(times[i - 1])
+    @staticmethod
+    def _calculate_amads_contour(pitches: list[int], times: list[float]) -> list[float]:
+        reversals_pitches = [pitches[0]]
+        reversals_time = [times[0]]
+
+        # Remove repeated notes
+        pitches, times = InterpolationContour._remove_repeated_notes(pitches, times)
 
         # Find reversals
         for i in range(2, len(pitches)):
@@ -307,8 +325,9 @@ class InterpolationContour:
 
     @property
     def direction_changes(self) -> float:
-        """Calculate the ratio of the number of changes in contour direction relative to the number
-        of interpolated gradient values.
+        """Calculate the proportion of interpolated gradient values that consistute
+        a change in direction. For instance, a gradient value of
+        -0.5 to 0.25 is a change in direction.
 
         Returns
         -------
@@ -329,7 +348,6 @@ class InterpolationContour:
         """
         # Convert contour to numpy array for element-wise multiplication
         contour_array = np.array(self.contour)
-        print(contour_array)
         # Calculate products of consecutive gradients
         consecutive_products = contour_array[:-1] * contour_array[1:]
 
