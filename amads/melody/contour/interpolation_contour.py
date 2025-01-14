@@ -11,7 +11,7 @@ import numpy as np
 
 
 class InterpolationContour:
-    """Class for calculating and analyzing the interpolation contours of melodies, according to
+    """Class for calculating and analyzing the interpolated contours of melodies, according to
     Müllensiefen (2009) [1]. This representation was first formalised by Steinbeck (1982)
     [2], and informed a varient of the present implementation in Müllensiefen & Frieler
     (2004) [3].
@@ -141,6 +141,10 @@ class InterpolationContour:
     def _calculate_fantastic_contour(
         pitches: list[int], times: list[float]
     ) -> list[float]:
+        """
+        Calculate the interpolation contour using the FANTASTIC method.
+        Utilises the helper function _is_turning_point_fantastic to identify turning points.
+        """
         # Find candidate points
         candidate_points_pitch = [pitches[0]]  # Start with first pitch
         candidate_points_time = [times[0]]  # Start with first time
@@ -192,7 +196,11 @@ class InterpolationContour:
     def _remove_repeated_notes(
         pitches: list[int], times: list[float]
     ) -> tuple[list[int], list[float]]:
-        """Remove repeated notes, keeping only the middle occurrence."""
+        """Helper function to remove repeated notes, keeping only the middle occurrence.
+        This is used for the AMADS method to produce the interpolated gradient values
+        at the middle of a sequence of repeated notes, should there be a reversal
+        between the repeated notes.
+        """
         unique_pitches, unique_times = [], []
         i = 0
         while i < len(pitches):
@@ -207,6 +215,10 @@ class InterpolationContour:
 
     @staticmethod
     def _calculate_amads_contour(pitches: list[int], times: list[float]) -> list[float]:
+        """
+        Calculate the interpolation contour using the AMADS method.
+        Utilises the helper function _remove_repeated_notes.
+        """
         reversals_pitches = [pitches[0]]
         reversals_time = [times[0]]
 
@@ -253,6 +265,7 @@ class InterpolationContour:
     def global_direction(self) -> int:
         """Calculate the global direction of the interpolation contour by taking
         the sign of the sum of all contour values.
+        Can be invoked for either FANTASTIC or AMADS method.
 
         Returns
         -------
@@ -281,6 +294,7 @@ class InterpolationContour:
     @property
     def mean_gradient(self) -> float:
         """Calculate the absolute mean gradient of the interpolation contour.
+        Can be invoked for either FANTASTIC or AMADS method.
 
         Returns
         -------
@@ -304,6 +318,7 @@ class InterpolationContour:
     @property
     def gradient_std(self) -> float:
         """Calculate the standard deviation of the interpolation contour gradients.
+        Can be invoked for either FANTASTIC or AMADS method.
 
         Returns
         -------
@@ -328,6 +343,7 @@ class InterpolationContour:
         """Calculate the proportion of interpolated gradient values that consistute
         a change in direction. For instance, a gradient value of
         -0.5 to 0.25 is a change in direction.
+        Can be invoked for either FANTASTIC or AMADS method.
 
         Returns
         -------
@@ -367,6 +383,7 @@ class InterpolationContour:
     @property
     def class_label(self) -> str:
         """Classify an interpolation contour into gradient categories.
+        Can be invoked for either FANTASTIC or AMADS method.
 
         The contour is sampled at 4 equally spaced points and each gradient is
         normalized to units of pitch change per second (scaled to 1 semitone per 0.25 seconds.)
