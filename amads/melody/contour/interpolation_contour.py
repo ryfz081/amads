@@ -185,9 +185,8 @@ class InterpolationContour:
         durations = np.diff(turning_points_time)
 
         # Create weighted gradients vector
-        samples_per_duration = np.round(durations * 10).astype(
-            int
-        )  # 10 samples per second
+        sample_rate = 10  # 10 samples per second
+        samples_per_duration = np.round(durations * sample_rate).astype(int)
         interpolation_contour = np.repeat(gradients, samples_per_duration)
 
         return [float(x) for x in interpolation_contour]
