@@ -386,7 +386,8 @@ class InterpolationContour:
         Can be invoked for either FANTASTIC or AMADS method.
 
         The contour is sampled at 4 equally spaced points and each gradient is
-        normalized to units of pitch change per second (scaled to 1 semitone per 0.25 seconds.)
+        normalized to units of pitch change per second
+        (expressed in units of semitones per 0.25 seconds.)
         The result is then classified into one of 5 categories:
 
         - 'a': Strong downward (-2) - normalized gradient <= -1.45
