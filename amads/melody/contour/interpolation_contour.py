@@ -186,7 +186,7 @@ class InterpolationContour:
 
         # Create weighted gradients vector
         sample_rate = 10  # 10 samples per second
-        samples_per_duration = np.round(durations * sample_rate).astype(int)
+        samples_per_duration = abs(np.round(durations * sample_rate).astype(int))
         interpolation_contour = np.repeat(gradients, samples_per_duration)
 
         return [float(x) for x in interpolation_contour]
@@ -244,9 +244,7 @@ class InterpolationContour:
         durations = np.diff(reversals_time)
 
         # Create weighted gradients vector
-        samples_per_duration = np.round(durations * 10).astype(
-            int
-        )  # 10 samples per second
+        samples_per_duration = abs(np.round(durations * 10).astype(int))
 
         # Can't have a contour with less than 2 points
         if len(reversals_pitches) < 2:
