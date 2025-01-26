@@ -4,10 +4,10 @@ Comparison melodic "contour" representation of a monophonic Score
 Date: [2025-01-26]
 
 Description:
-    Define the corresponding index of a note in a monophonic Score 
+    Define the corresponding index of a note in a monophonic Score
     as the order statistic of a note based off of note onset.
-    Define a combination contour matrix of a monophonic score as a boolean 
-    square matrix whose row and column indices are the corresponding indices 
+    Define a combination contour matrix of a monophonic score as a boolean
+    square matrix whose row and column indices are the corresponding indices
     of notes, and for all i,j-th element in the matrix such that (i > j and
     note[j].keynum > note[i].keynum)
     Computes a combination contour matrix given a monophonic Score.
@@ -23,20 +23,22 @@ Usage:
 Original doc: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=6e06906ca1ba0bf0ac8f2cb1a929f3be95eeadfa#page=54
 
 Reference(s):
-    Marvin, E. W. & Laprade, P. A. (1987). Relating music contours: 
+    Marvin, E. W. & Laprade, P. A. (1987). Relating music contours:
         Extensions of a theory for contour. Journal of Music Theory,
         31(2), 225-267.
 """
-from ...core.basics import Note, Part, Score
-from ...pitch.ismonophonic import ismonophonic
+
 import numpy as np
+
+from ...core.basics import Note, Score
+from ...pitch.ismonophonic import ismonophonic
 
 
 def combcontour(score: Score):
     """
     Computes a combination contour matrix and a list of notes for corresponding
     indices given a monophonic Score.
-    (See file description for more details on what a combination contour matrix 
+    (See file description for more details on what a combination contour matrix
     is defined as)
 
     For instance, given a monophonic score of 4 notes where the notes are sorted by
@@ -54,7 +56,7 @@ def combcontour(score: Score):
 
     Parameters
     ----------
-    score 
+    score
         Monophonic input score (class from core.basics for storing music scores)
 
     Returns
@@ -89,8 +91,8 @@ def combcontour(score: Score):
         raise ValueError("Score is empty")
 
     pitch_array = np.array([note.keynum for note in notes])
-    
-    contour_mtx = np.full((len(notes), len(notes)), False, dtype = bool)
+
+    contour_mtx = np.full((len(notes), len(notes)), False, dtype=bool)
 
     # perform the comparison with slicing notation for numpy array
     for i in range(len(notes)):

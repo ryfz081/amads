@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 from amads.all import partitura_midi_import, pianoroll
-from amads.melody.contour.melcontour import melcontour, autocorrelatecontour
+from amads.melody.contour.melcontour import autocorrelatecontour, melcontour
 from amads.music import example
 
 my_midi_file = example.fullpath("midi/tones.mid")
@@ -20,9 +20,10 @@ print("------- Executing autocorrelatecontour")
 # Note that autocorrelate contour
 autocorrelation = autocorrelatecontour(contour)
 print(autocorrelation)
-assert(len(autocorrelation) == 2 * len(contour) - 1)
+assert len(autocorrelation) == 2 * len(contour) - 1
 
-def hacky_plot(correspondences, mode = "ac"):
+
+def hacky_plot(correspondences, mode="ac"):
     """
     very hacky plot function. Not much to be said except:
     (1) mode "c" plots the contour as obtained by melcontour
@@ -34,19 +35,30 @@ def hacky_plot(correspondences, mode = "ac"):
         # autocorrelation plot
         fig, ax = plt.subplots()
         lag_tuple, correlation_tuple = zip(*correspondences)
-        plt.plot(lag_tuple, correlation_tuple, \
-            color="green", marker="o", label="autocorrelation values")
+        plt.plot(
+            lag_tuple,
+            correlation_tuple,
+            color="green",
+            marker="o",
+            label="autocorrelation values",
+        )
         return
     if mode == "c":
         # sample contour plot
-        fig = pianoroll(myscore)
+        pianoroll(myscore)
         sample_tick_tuple, pitch_tuple = zip(*correspondences)
-        plt.plot(sample_tick_tuple, pitch_tuple, \
-            color="purple", marker="o", label="contour samples")
+        plt.plot(
+            sample_tick_tuple,
+            pitch_tuple,
+            color="purple",
+            marker="o",
+            label="contour samples",
+        )
         return
     raise ValueError("wrong mode, probably not supported yet!")
 
-hack_plot(contour, "c")
+
+hacky_plot(contour, "c")
 
 plt.legend(loc="best")
 plt.show()

@@ -18,21 +18,22 @@ Usage:
 Original doc: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=6e06906ca1ba0bf0ac8f2cb1a929f3be95eeadfa#page=71
 
 Reference(s):
-    Eerola, T., Himberg, T., Toiviainen, P., & Louhivuori, J. (2006). 
-        Perceived complexity of Western and African folk melodies by Western 
+    Eerola, T., Himberg, T., Toiviainen, P., & Louhivuori, J. (2006).
+        Perceived complexity of Western and African folk melodies by Western
         and African listeners. Psychology of Music, 34(3), 341-375.
 """
 
-import numpy as np
 import math
 
-from ...core.basics import Note, Part, Score
+import numpy as np
+
+from ...core.basics import Note, Score
 from ...pitch.ismonophonic import ismonophonic
 
 
 def melcontour(score: Score, res: float) -> list[tuple[float, int]]:
     """
-    Calculates a sequence of the pitches of the last note onset up to 
+    Calculates a sequence of the pitches of the last note onset up to
     each sampling resolution tick
     For instance, given a monophonic score of 4 notes where the notes are sorted
     by onset:
@@ -46,7 +47,7 @@ def melcontour(score: Score, res: float) -> list[tuple[float, int]]:
 
     Parameters
     ----------
-    score 
+    score
         Monophonic input score (class from core.basics for storing music scores)
     res
         Sampling resolution (in beats, see core.basics for more details)
@@ -80,7 +81,7 @@ def melcontour(score: Score, res: float) -> list[tuple[float, int]]:
     if not notes:
         raise ValueError("Score is empty")
 
-    # Note that the first sampling "tick" only starts at zero on the onset 
+    # Note that the first sampling "tick" only starts at zero on the onset
     # of the first note
     sampling_tick = 0.0
     sampling_end = float(notes[-1].end - notes[0].start)
@@ -92,7 +93,7 @@ def melcontour(score: Score, res: float) -> list[tuple[float, int]]:
     notes.append(Note(1, None, None, None, float("infinity")))
 
     contour_list = []
-    while (sampling_tick <= sampling_end):
+    while sampling_tick <= sampling_end:
         # we want to find the closest note with an onset closest to the current
         # sampling tick
         current_note_range = range(sampled_note_idx, len(notes))
@@ -101,20 +102,23 @@ def melcontour(score: Score, res: float) -> list[tuple[float, int]]:
             # the next note to the last note up to a sampling resolution tick
             # will always be the first note after the sampling resolution tick
             # by definition
-            if notes[note_idx].start <= sampling_tick + notes[0].start and \
-                notes[next_note_idx].start > sampling_tick + notes[0].start:
+            if (
+                notes[note_idx].start <= sampling_tick + notes[0].start
+                and notes[next_note_idx].start > sampling_tick + notes[0].start
+            ):
                 sampled_note_idx = note_idx
                 break
-            assert(notes[note_idx].start <= sampling_tick + notes[0].start)
+            assert notes[note_idx].start <= sampling_tick + notes[0].start
 
         # assert that the canary value appended to the end hasn't been selected.
         # this is mostly just a sanity check
-        assert(notes[sampled_note_idx].start != float("infinity"))
+        assert notes[sampled_note_idx].start != float("infinity")
         # add relevant tuple
         contour_list.append((sampling_tick, notes[sampled_note_idx].keynum))
         sampling_tick += res
 
     return contour_list
+
 
 def autocorrelatecontour(contour_output: list[tuple[float, int]]):
     """
@@ -122,13 +126,13 @@ def autocorrelatecontour(contour_output: list[tuple[float, int]]):
 
     Parameters
     ----------
-    contour_output 
+    contour_output
         output of melcontour
 
     Returns
     -------
     list[tuple[float, float]]
-        list of tuples of onset differences between contour output and 
+        list of tuples of onset differences between contour output and
         autocorrelation values
 
     Notes
@@ -143,18 +147,18 @@ def autocorrelatecontour(contour_output: list[tuple[float, int]]):
     # unpack output of melcontour
     sample_tuple, pitch_tuple = zip(*contour_output)
     # adjust pitch information based off of matlab implementation
-    pitch_array = np.array(pitch_tuple, dtype = float)
+    pitch_array = np.array(pitch_tuple, dtype=float)
     pitch_array -= np.mean(pitch_array)
     pitch_array /= math.sqrt(np.dot(pitch_array, pitch_array))
     # note that with the "full" option, np.correlate gives the exact same output
     # as matlab's xcorr function
     correlation_array = np.correlate(pitch_array, pitch_array, "full")
-    # essentially, we want all values 
+    # essentially, we want all values
     # [-sampling_end, -sampling_end + res ... 0 ... sampling_end]
     # with a step size of res here
     # sampling_end in this list is truncated towards the nearest multiple of res
-    sample_array = np.array(sample_tuple, dtype = float)
+    sample_array = np.array(sample_tuple, dtype=float)
     lag_array = np.concatenate((-sample_array[:0:-1], sample_array))
-    assert(lag_array.shape == correlation_array.shape)
+    assert lag_array.shape == correlation_array.shape
     # repack correspondence
     return list(zip(list(lag_array), list(correlation_array)))
