@@ -1,41 +1,31 @@
 """
-Begin rambling:
-There is some trouble for deciding the output for combcontour
-Namely, we have a similar problem to when we implemented boundary
-and segment_gestalt. 
-We don't have a total ordering in our score representation, so
-a matrix representation is probably not going to work (?) unless
-I finesse a key into the return value.
+Comparison melodic "contour" representation of a monophonic Score
 
-combcontour(score) -> notes, contour_matrix
+Date: [2025-01-26]
 
-Reference:
+Description:
+    Define the corresponding index of a note in a monophonic Score 
+    as the order statistic of a note based off of note onset.
+    Define a combination contour matrix of a monophonic score as a boolean 
+    square matrix whose row and column indices are the corresponding indices 
+    of notes, and for all i,j-th element in the matrix such that (i > j and
+    note[j].keynum > note[i].keynum)
+    Computes a combination contour matrix given a monophonic Score.
+
+Dependencies:
+    - amads
+    - math
+    - numpy
+
+Usage:
+    [Add basic usage examples or import statements]
+
+Original doc: https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=6e06906ca1ba0bf0ac8f2cb1a929f3be95eeadfa#page=54
+
+Reference(s):
     Marvin, E. W. & Laprade, P. A. (1987). Relating music contours: 
         Extensions of a theory for contour. Journal of Music Theory,
         31(2), 225-267.
-
-Continue Rambling:
-Observe that we are currently dealing with monophonic melodies,
-so we can use offsets to work this.
-
-Basically always half of the matrix square will be 1.
-We are forced to store a dense map for this... *sighs*
-That or, it might be prudent just to return a double iterator.
-Probably not particularly prudent to do that.
-Ah well, might as well store the matrix in a numpy array
-
-However, whether or not we can hide this behemoth amount of
-unnecessary data still depends on what this matrix is used for...
-
-I would much much much prefer that not all of such regular data can be used,
-so we can probably hide the computation somewhere...
-Probably not, because the entire point of combcontour is to give a contour
-representation via a matrix form.
-
-Okay, we *have* to use a matrix or something similar, because contour here
-is defined as pitch comparisons between 2 notes that are i notes apart
-when sorted by onset.
-This is such a cute realization
 """
 from ...core.basics import Note, Part, Score
 from ...pitch.ismonophonic import ismonophonic
@@ -44,13 +34,46 @@ import numpy as np
 
 def combcontour(score: Score):
     """
-    Given a score, we return two things:
-    (1) 2-d numpy array with len(notes) x len(notes) dimension, recording
-    a boolean on whether the ith note's pitch is larger than the jth note's pitch
-    (2) list of notes (as a reference for which index refers to which note 
+    Computes a combination contour matrix and a list of notes for corresponding
+    indices given a monophonic Score.
+    (See file description for more details on what a combination contour matrix 
+    is defined as)
+
+    For instance, given a monophonic score of 4 notes where the notes are sorted by
+    onset:
+    [note1, note2, note3, note4]
+    with corresponding pitch values:
+    [55, 40, 60, 50]
+    We will get the following combination contour matrix:
+    [[0, 0, 0, 0],
+     [1, 0, 0, 0],
+     [0, 0, 0, 0],
+     [1, 0, 1, 0]]
+    and the following list of notes for corresponding indices:
+    [note1, note2, note3, note4]
+
+    Parameters
+    ----------
+    score 
+        Monophonic input score (class from core.basics for storing music scores)
+
+    Returns
+    -------
+    Tuple of the following:
+    (1) 2-d numpy array containing the combination contour matrix
+    (2) list of notes (as a reference for corresponding index of each note
     in the 2-d array)
+
+    Notes
+    -----
+    Implementation based on the original MATLAB code from:
+    https://github.com/miditoolbox/1.1/blob/master/miditoolbox/combcontour.m
+
+    Examples
+    --------
+    [Unfortunately, still having problem resolving score construction]
     """
-    # ripped from boundary, because once again, we're doing melodic analysis
+    # melodic analysis must be done on a monophonic score
     if not ismonophonic(score):
         raise ValueError("Score must be monophonic")
     # make a flattened and collapsed copy of the original score
@@ -61,14 +84,15 @@ def combcontour(score: Score):
 
     # sort the notes
     notes.sort(key=lambda note: (note.start, -note.pitch.keynum))
+    # no comparisons to be had if the score contains no notes
     if not notes:
-        # probably better to do it earlier
         raise ValueError("Score is empty")
 
     pitch_array = np.array([note.keynum for note in notes])
     
     contour_mtx = np.full((len(notes), len(notes)), False, dtype = bool)
 
+    # perform the comparison with slicing notation for numpy array
     for i in range(len(notes)):
         contour_mtx[i:, i] = pitch_array[i] > pitch_array[i:]
 
