@@ -857,8 +857,11 @@ class Score(Concurrence):
         Create a simple C major scale with default timing:
 
         >>> score = Score.from_melody([60, 62, 64, 65, 67, 69, 71, 72])
-        >>> len(score.content[0].content)  # number of notes in first part
+        >>> notes = score.content[0].content
+        >>> len(notes)  # number of notes in first part
         8
+        >>> notes[0].pitch.keynum
+        60
         >>> score.duration  # last note ends at t=8
         8.0
 
