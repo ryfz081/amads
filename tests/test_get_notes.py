@@ -122,7 +122,10 @@ def test_get_notes_with_ties():
     score.insert(part)
 
     notes = list(score.get_notes())
+
+    # TODO: currently this test fails, we are getting two notes not one
     assert len(notes) == 1  # Tied notes should be merged into one
+
     assert notes[0].pitch.keynum == 60
     assert notes[0].duration == 4  # Duration should be combined
     assert notes[0].tie is None  # Tie should be stripped
