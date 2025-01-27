@@ -7,11 +7,6 @@ Description:
     Compute the sequence of pitches of a subsampling of pitches from a
     monophonic score
 
-Dependencies:
-    - amads
-    - math
-    - numpy
-
 Usage:
     [Add basic usage examples or import statements]
 

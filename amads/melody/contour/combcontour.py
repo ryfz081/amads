@@ -4,18 +4,8 @@ Comparison melodic "contour" representation of a monophonic Score
 Date: [2025-01-26]
 
 Description:
-    Define the corresponding index of a note in a monophonic Score
-    as the order statistic of a note based off of note onset.
-    Define a combination contour matrix of a monophonic score as a boolean
-    square matrix whose row and column indices are the corresponding indices
-    of notes, and for all i,j-th element in the matrix such that (i > j and
-    note[j].keynum > note[i].keynum)
     Computes a combination contour matrix given a monophonic Score.
-
-Dependencies:
-    - amads
-    - math
-    - numpy
+    (See combcontour docstring for more details)
 
 Usage:
     [Add basic usage examples or import statements]
@@ -36,10 +26,14 @@ from ...pitch.ismonophonic import ismonophonic
 
 def combcontour(score: Score):
     """
+    Define the corresponding index of a note in a monophonic Score
+    as the order statistic of a note based off of note onset.
+    Define a combination contour matrix of a monophonic score as a boolean
+    square matrix whose row and column indices are the corresponding indices
+    of notes, and for all i,j-th element in the matrix such that (i > j and
+    note[j].keynum > note[i].keynum)
     Computes a combination contour matrix and a list of notes for corresponding
     indices given a monophonic Score.
-    (See file description for more details on what a combination contour matrix
-    is defined as)
 
     For instance, given a monophonic score of 4 notes where the notes are sorted by
     onset:
