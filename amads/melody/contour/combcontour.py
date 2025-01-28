@@ -1,5 +1,5 @@
 """
-Comparison melodic "contour" representation of a monophonic Score
+Pairwise pitch comparison melodic "contour" representation of a monophonic Score
 
 Date: [2025-01-26]
 
@@ -24,7 +24,7 @@ from ...core.basics import Note, Score
 from ...pitch.ismonophonic import ismonophonic
 
 
-def combcontour(score: Score):
+def pairwiseCombinationContour(score: Score):
     """
     Define the corresponding index of a note in a monophonic Score
     as the order statistic of a note based off of note onset.

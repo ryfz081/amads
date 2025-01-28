@@ -26,7 +26,7 @@ from ...core.basics import Note, Score
 from ...pitch.ismonophonic import ismonophonic
 
 
-def melcontour(score: Score, res: float) -> list[tuple[float, int]]:
+def melodySamplingContour(score: Score, res: float) -> list[tuple[float, int]]:
     """
     Calculates a sequence of the pitches of the last note onset up to
     each sampling resolution tick
