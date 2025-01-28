@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 from amads.all import partitura_midi_import, pianoroll
-from amads.melody.contour.combcontour import combcontour
+from amads.melody.contour.combcontour import pairwiseCombinationContour
 from amads.music import example
 
 my_midi_file = example.fullpath("midi/tones.mid")
@@ -13,7 +13,7 @@ print("------- finished input from partitura")
 fig = pianoroll(myscore)
 
 print("------- Executing combcontour")
-notes, contour_mtx = combcontour(myscore)
+notes, contour_mtx = pairwiseCombinationContour(myscore)
 
 print(contour_mtx)
 plt.show()

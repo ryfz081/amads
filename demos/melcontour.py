@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 from amads.all import partitura_midi_import, pianoroll
-from amads.melody.contour.melcontour import autocorrelatecontour, melcontour
+from amads.melody.contour.melcontour import autocorrelatecontour, melodySamplingContour
 from amads.music import example
 
 my_midi_file = example.fullpath("midi/tones.mid")
@@ -13,7 +13,7 @@ print("------- finished input from partitura")
 
 print("------- Executing melcontour")
 # we are calling melcontour with a resolution of 0.25 beats per sample tick
-contour = melcontour(myscore, 0.40)
+contour = melodySamplingContour(myscore, 0.40)
 print(contour)
 
 print("------- Executing autocorrelatecontour")
