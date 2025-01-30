@@ -26,7 +26,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y r-base r-base-dev
         sudo apt-get install -y libtirpc-dev
-        sudo Rscript -e 'install.packages("remotes", repos="https://cloud.r-project.org")'
 
     - name: Run pre-commit checks
       run: |
@@ -38,6 +37,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[test,melsim]
         pip install pytest-cov
+        python -c "from amads.melody.similarity.melsim import install_dependencies; install_dependencies()"
+
 
     - name: Run tests with coverage
       run: |

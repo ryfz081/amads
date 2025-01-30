@@ -76,6 +76,9 @@ from amads.utils import check_python_package
 base_packages = ["base", "utils"]
 cran_packages = ["tibble", "R6", "remotes"]
 github_packages = ["melsim"]
+github_repos = {
+    "melsim": "sebsilas/melsim",
+}
 
 R = SimpleNamespace()
 
@@ -100,30 +103,39 @@ def requires_melsim(func):
     return wrapper
 
 
-def check_packages_installed():
-    from rpy2.robjects.packages import importr, isinstalled
+def check_packages_installed(install_missing: bool = False):
+    from rpy2.robjects.packages import isinstalled
 
-    utils = importr("utils")
-    remotes = importr("remotes")
-    for package in cran_packages:
+    for package in cran_packages + github_packages:
         if not isinstalled(package):
-            response = input(
-                f"Package '{package}' is not installed. Would you like to install it? (y/n): "
-            )
-            if response.lower() != "y":
-                raise ImportError(f"Package '{package}' is required but not installed")
+            if install_missing:
+                install_r_package(package)
+            else:
+                raise ImportError(
+                    f"Package '{package}' is required but not installed. "
+                    "You can run install it by running the following command: "
+                    "from amads.melody.similarity.melsim import install_dependencies; install_dependencies()"
+                )
 
-            utils.install_packages(package)
 
-    for package in github_packages:
-        if not isinstalled(package):
-            response = input(
-                f"Package '{package}' is not installed. Would you like to install it? (y/n): "
-            )
-            if response.lower() != "y":
-                raise ImportError(f"Package '{package}' is required but not installed")
+def install_r_package(package: str):
+    from rpy2.robjects.packages import importr
 
-            remotes.install_github(package)
+    if package in cran_packages:
+        print(f"Installing CRAN package '{package}'...")
+        utils = importr("utils")
+        utils.install_packages(package)
+    elif package in github_packages:
+        print(f"Installing GitHub package '{package}'...")
+        remotes = importr("remotes")
+        repo = github_repos[package]
+        remotes.install_github(repo, upgrade="always")
+    else:
+        raise ValueError(f"Unknown package type for '{package}'")
+
+
+def install_dependencies():
+    check_packages_installed(install_missing=True)
 
 
 def import_packages():
