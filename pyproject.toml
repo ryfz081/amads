@@ -20,7 +20,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "pandas",
-    "matplotlib", 
+    "matplotlib",
     "scipy<1.12.0",
     "partitura",
     "setuptools",  # required for partitura
@@ -33,7 +33,7 @@ dependencies = [
 dev = [
     "sphinx",
     "sphinx-book-theme",
-    "sphinx-autodoc-typehints", 
+    "sphinx-autodoc-typehints",
     "myst-parser",
     "pre-commit",
     "pytest-cov",
