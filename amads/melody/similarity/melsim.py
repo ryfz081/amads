@@ -74,7 +74,7 @@ from amads.pitch.ismonophonic import ismonophonic
 from amads.utils import check_python_package
 
 base_packages = ["base", "utils"]
-cran_packages = ["tibble", "R6", "remotes"]
+cran_packages = ["tibble", "R6", "devtools"]
 github_packages = ["melsim"]
 github_repos = {
     "melsim": "sebsilas/melsim",
