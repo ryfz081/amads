@@ -129,6 +129,11 @@ def install_r_package(package: str):
     elif package in github_packages:
         print(f"Installing GitHub package '{package}'...")
         repo = github_repos[package]
+
+        # According to an issue on a different GitHub repo,
+        # We need more sudo-apt get magic to install devtools
+        # https://github.com/r-lib/devtools/issues/2131
+
         devtools = importr("devtools")
         devtools.install_github(repo, upgrade="always")
 
