@@ -11,7 +11,7 @@ def pitch_mean(score, weighted=False):
     sum = 0
     count = 0
     for note in score.find_all(Note):
-        w = note.dur if weighted else 1
+        w = note.duration if weighted else 1
         sum += note.keynum * w
         count += w
     return (sum / count) if sum > 0 else 0

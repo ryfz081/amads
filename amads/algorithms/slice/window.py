@@ -30,7 +30,7 @@ class Window(Slice):
         - "center": reference time is at window center
         - "right": window ends at reference time
     candidate_notes : Iterable[Note]
-        Notes to consider for inclusion in this window, sorted by offset and pitch
+        Notes to consider for inclusion in this window, sorted by start time and pitch
     skip : int, default=0
         Index to start searching from in candidate_notes. This is used to optimize
         performance when iterating through multiple windows - each window can tell
@@ -70,16 +70,16 @@ class Window(Slice):
         for i in range(skip, len(candidate_notes)):
             note = candidate_notes[i]
 
-            if note.end_offset < start:
+            if note.end < start:
                 # The note finished before the window started.
                 # It'll definitely finish before future windows start,
                 # because they'll be even later, so we can skip it then too.
                 skip = i
                 continue
 
-            if note.offset > end:
+            if note.start > end:
                 # The note starts after the window finishes.
-                # All the remaining notes in candidate_notes will have even later offsets,
+                # All the remaining notes in candidate_notes will have even later starts,
                 # so we don't need to check them for this window.
                 # They might be caught by future windows though.
                 break
@@ -89,8 +89,8 @@ class Window(Slice):
             # We use copy instead of creating a new Note because we want to
             # preserve any other attributes that might be useful in downstream tasks.
             note = note.copy()
-            note.offset = max(note.offset, start)
-            note.dur = min(note.dur, end - note.offset)
+            note.start = max(note.start, start)
+            note.end = min(note.end, end)
 
             notes.append(note)
 
@@ -98,7 +98,10 @@ class Window(Slice):
         self.skip = skip
 
         super().__init__(
-            notes=notes, original_notes=original_notes, start=start, end=end
+            content=notes,
+            original_notes=original_notes,
+            delta=start,
+            duration=size,
         )
 
 
@@ -158,7 +161,7 @@ def sliding_window(
         notes = passage
 
     notes = list(notes)
-    notes.sort(key=lambda n: (n.offset, n.pitch))
+    notes.sort(key=lambda n: (n.start, n.pitch))
 
     if times is None:
         window_times = float_range(start, end, step)

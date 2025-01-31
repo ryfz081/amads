@@ -1,7 +1,7 @@
 """Salami slice algorithm for segmenting musical scores.
 
 This module implements the salami slice algorithm, which segments a musical score
-into vertical slices at each note onset and offset. Each slice contains all notes
+into vertical slices at each note start and end. Each slice contains all notes
 that are sounding at that point in time.
 
 Notes
@@ -52,7 +52,7 @@ class Timepoint:
         float
             The end time
         """
-        return max(n.offset + n.dur for n in self.sounding_notes)
+        return max(n.end for n in self.sounding_notes)
 
     @classmethod
     def from_notes(
@@ -76,8 +76,8 @@ class Timepoint:
         note_offs = defaultdict(list)
 
         for note in notes:
-            note_on = note.offset
-            note_off = note.offset + note.dur
+            note_on = note.start
+            note_off = note.end
 
             if time_n_digits is not None:
                 note_on = round(note_on, time_n_digits)
@@ -117,7 +117,7 @@ def salami_slice(
     include_note_end_slices: bool = True,
     min_slice_duration: float = 0.01,
 ) -> List[Slice]:
-    """Segment a musical passage into vertical slices at note onsets and offsets ('salami slices').
+    """Segment a musical passage into vertical slices at note starts and ends ('salami slices').
 
     Parameters
     ----------
@@ -185,8 +185,8 @@ def salami_slice(
 
             notes = [
                 Note(
-                    offset=slice_start,
-                    dur=slice_duration,
+                    delta=slice_start,
+                    duration=slice_duration,
                     pitch=pitch,
                 )
                 for pitch in pitches
@@ -194,10 +194,10 @@ def salami_slice(
 
             slices.append(
                 Slice(
-                    notes=notes,
+                    content=notes,
                     original_notes=timepoint.sounding_notes,
-                    start=slice_start,
-                    end=slice_end,
+                    delta=slice_start,
+                    duration=slice_end - slice_start,
                 )
             )
 

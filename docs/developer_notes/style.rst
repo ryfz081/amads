@@ -77,7 +77,7 @@ Local function definitions should be avoided as they can negatively impact perfo
 
 We plan to implement a pipeline for standardizing code formatting using ``black``. This will ensure consistent code style across the project.
 
-Docstrings should use numpydoc formatting with type hints in the source code::
+Docstrings should use numpydoc formatting::
 
     def calculate_entropy(pitches: list[int]) -> float:
         """Calculate the entropy of a pitch sequence.
@@ -117,6 +117,8 @@ External package imports (except numpy) should be done locally within functions 
 Types
 ~~~~~
 
+- Provide type hints for function parameters and return types
+- If a function accepts either `float` or `int` you can use `float` as the type hint, `int` will be understood as being accepted too 
 - Functions should accept Python base types as inputs but can optionally support numpy arrays
 - Return Python base types by default, use numpy types only when necessary
 - For internal computations, either base Python or numpy is fine
@@ -125,23 +127,14 @@ Types
 Common patterns
 ~~~~~~~~~~~~~~
 
-Internal vs external functions:
-
-- Internal functions often implement the core algorithm or equation from a paper
-- External functions handle type checking, validation, and conversion
+When implementing algorithms, we distinguish between internal and external functions.
+Internal functions implement the core algorithm or equation.
+External functions wrap these internal implementations, handling input validation, type checking, and any necessary data conversion.
+This separation of concerns helps keep the core algorithmic logic clean and focused while ensuring robust input handling at the API level.
 
 For example::
 
-    def _calculate_entropy_core(counts: list[int]) -> float:
-        """Core entropy calculation from Shannon (1948).
-
-        Internal function that implements the entropy formula.
-        Assumes input has been validated.
-        """
-        total = sum(counts)
-        probabilities = [c/total for c in counts]
-        return -sum(p * math.log2(p) for p in probabilities if p > 0)
-
+    # External function
     def calculate_entropy(pitches: list[int]) -> float:
         """Calculate the entropy of a pitch sequence.
 
@@ -154,7 +147,21 @@ For example::
         from collections import Counter
         counts = list(Counter(pitches).values())
 
-        return _calculate_entropy_core(counts)
+        return _calculate_entropy(counts)
+
+    # Internal function
+    def _calculate_entropy(counts: list[int]) -> float:
+        """Core entropy calculation from Shannon (1948).
+
+        Internal function that implements the entropy formula.
+        Assumes input has been validated.
+        """
+        total = sum(counts)
+        probabilities = [c/total for c in counts]
+        return -sum(p * math.log2(p) for p in probabilities if p > 0)
+
+Put the external function at the beginning of the module, so that it's the first thing the user sees.
+Note that we prefix the internal function with an underscore, to indicate that it's not part of the public API.
 
 References
 ~~~~~~~~~~

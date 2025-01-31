@@ -3,9 +3,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from amads.all import partitura_midi_import, pcdist2
 from amads.music import example
-from amads.pcdist2 import pcdist2
-from amads.pt_midi_import import partitura_midi_import
 
 # "midi/tones.mid"
 my_midi_file = example.fullpath("midi/sarabande.mid")

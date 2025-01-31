@@ -70,7 +70,7 @@ def duration_distribution_1(
         x_categories = [f"{bin_centers[i]:.2f}" for i in range(len(bin_centers))]
         for note in score.find_all(Note):
             for i, boundary in enumerate(bin_boundaries):
-                if note.dur <= boundary:
+                if note.duration <= boundary:
                     dd[i] += 1
                     break
             else:
@@ -91,8 +91,8 @@ def duration_distribution_1(
         for note in score.find_all(Note):
             # The following algorithm comes from the original MATLAB implementation
             # https://github.com/miditoolbox/1.1/blob/master/miditoolbox/durdist1.m
-            if note.dur != 0:
-                bin = round(2 * math.log2(note.dur)) + 4
+            if note.duration != 0:
+                bin = round(2 * math.log2(note.duration)) + 4
                 if 0 <= bin <= 8:
                     dd[bin] += 1
 

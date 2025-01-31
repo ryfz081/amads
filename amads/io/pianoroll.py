@@ -81,9 +81,9 @@ def pianoroll(
     min_note, max_note = 127.0, 0.0
     max_time = 0
     for note in score.flatten(collapse=True).find_all(Note):
-        start_time = note.qstart()
+        start_time = note.start
         pitch = note.keynum - 0.5
-        duration = note.dur
+        duration = note.duration
 
         # Conditionally converts beat to sec
         if x_label == "sec":

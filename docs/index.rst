@@ -46,24 +46,40 @@ General algorithms
    :toctree: _autosummary
    :caption: General algorithms:
 
-   amads.algorithms.boundary
-   amads.algorithms.break_it_up
-   amads.algorithms.durdist1
-   amads.algorithms.durdist2
    amads.algorithms.entropy
-   amads.algorithms.hz2midi
-   amads.algorithms.ismonophonic
-   amads.algorithms.ivdirdist1
-   amads.algorithms.ivdist1
-   amads.algorithms.ivdist2
-   amads.algorithms.ivsizedist1
    amads.algorithms.nnotes
-   amads.algorithms.pcdist1
-   amads.algorithms.pcdist2
-   amads.algorithms.pitch_mean
    amads.algorithms.scale
-   amads.algorithms.segment_gestalt
-   amads.algorithms.skyline
+
+Pitch
+-----
+
+.. autosummary::
+   :toctree: _autosummary
+   :caption: Pitch:
+
+
+   amads.pitch.hz2midi
+   amads.pitch.ismonophonic
+   amads.pitch.ivdirdist1
+   amads.pitch.ivdist1
+   amads.pitch.ivdist2
+   amads.pitch.ivsizedist1
+   amads.pitch.key.profiles
+   amads.pitch.pcdist1
+   amads.pitch.pcdist2
+   amads.pitch.pitch_mean
+   amads.pitch.transformations
+
+Time
+----
+
+.. autosummary::
+   :toctree: _autosummary
+   :caption: Time:
+
+   amads.time.durdist1
+   amads.time.durdist2
+   amads.time.meter.break_it_up
 
 Harmony
 -------
@@ -74,23 +90,24 @@ Harmony
 
    amads.harmony.root_finding.parncutt_1988
 
-Pitch
------
+Melody
+------
 
 .. autosummary::
    :toctree: _autosummary
-   :caption: Pitch:
+   :caption: Melody:
 
-   amads.pitch.transformations
+   amads.melody.boundary
+   amads.melody.segment_gestalt
 
-Resources
+Polyphony
 ---------
 
 .. autosummary::
    :toctree: _autosummary
-   :caption: Resources:
+   :caption: Polyphony:
 
-   amads.resources.key_profiles_literature
+   amads.polyphony.skyline
 
 Core
 ----

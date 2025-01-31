@@ -1,9 +1,7 @@
 import matplotlib.pyplot as plt
 
+from amads.all import partitura_midi_import, pcdist1, plotdist
 from amads.music import example
-from amads.pcdist1 import pcdist1
-from amads.plotdist import plotdist
-from amads.pt_midi_import import partitura_midi_import
 
 my_midi_file = example.fullpath("midi/sarabande.mid")
 
