@@ -125,11 +125,13 @@ def install_r_package(package: str):
         print(f"Installing CRAN package '{package}'...")
         utils = importr("utils")
         utils.install_packages(package)
+
     elif package in github_packages:
         print(f"Installing GitHub package '{package}'...")
-        remotes = importr("remotes")
         repo = github_repos[package]
-        remotes.install_github(repo, upgrade="always")
+        devtools = importr("devtools")
+        devtools.install_github(repo, upgrade="always")
+
     else:
         raise ValueError(f"Unknown package type for '{package}'")
 
