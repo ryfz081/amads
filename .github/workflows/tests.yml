@@ -28,6 +28,8 @@ jobs:
         sudo apt-get install -y libtirpc-dev
         mkdir -p ~/R/library
         echo "R_LIBS_USER=~/R/library" >> $GITHUB_ENV
+        install.packages("remotes")
+        remotes::install_github("sebsilas/melsim")
 
     - name: Run pre-commit checks
       run: |
