@@ -26,6 +26,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y r-base r-base-dev
         sudo apt-get install -y libtirpc-dev
+        mkdir -p ~/R/library
+        echo "R_LIBS_USER=~/R/library" >> $GITHUB_ENV
 
     - name: Run pre-commit checks
       run: |
