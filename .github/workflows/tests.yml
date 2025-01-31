@@ -1,5 +1,8 @@
 name: Tests
 
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
 on:
   push:
     branches: [ main ]
@@ -29,7 +32,7 @@ jobs:
         mkdir -p ~/R/library
         echo "R_LIBS_USER=~/R/library" >> $GITHUB_ENV
         
-    - name: Install R packages
+    - name: Install R packages        
       run: | 
         Rscript -e "install.packages(c('gitcreds', 'remotes'))"
         Rscript -e "gitcreds::gitcreds_set('${{ secrets.GITHUB_TOKEN }}')"
