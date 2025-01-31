@@ -28,6 +28,9 @@ jobs:
         sudo apt-get install -y libtirpc-dev
         mkdir -p ~/R/library
         echo "R_LIBS_USER=~/R/library" >> $GITHUB_ENV
+        
+    - name: Install R packages
+      run: | 
         Rscript -e "install.packages('remotes')"
         Rscript -e "remotes::install_github('sebsilas/melsim')"
 
