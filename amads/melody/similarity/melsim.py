@@ -74,7 +74,7 @@ from amads.pitch.ismonophonic import ismonophonic
 from amads.utils import check_python_package
 
 base_packages = ["base", "utils"]
-cran_packages = ["tibble", "R6", "devtools"]
+cran_packages = ["tibble", "R6", "remotes"]
 github_packages = ["melsim"]
 github_repos = {
     "melsim": "sebsilas/melsim",
@@ -125,18 +125,11 @@ def install_r_package(package: str):
         print(f"Installing CRAN package '{package}'...")
         utils = importr("utils")
         utils.install_packages(package)
-
     elif package in github_packages:
         print(f"Installing GitHub package '{package}'...")
+        remotes = importr("remotes")
         repo = github_repos[package]
-
-        # According to an issue on a different GitHub repo,
-        # We need more sudo-apt get magic to install devtools
-        # https://github.com/r-lib/devtools/issues/2131
-
-        devtools = importr("devtools")
-        devtools.install_github(repo, upgrade="always")
-
+        remotes.install_github(repo, upgrade="always")
     else:
         raise ValueError(f"Unknown package type for '{package}'")
 
