@@ -34,8 +34,7 @@ jobs:
         
     - name: Install R packages        
       run: | 
-        Rscript -e "install.packages(c('gitcreds', 'remotes'))"
-        Rscript -e "gitcreds::gitcreds_set('${{ secrets.GITHUB_TOKEN }}')"
+        Rscript -e "install.packages(c('remotes'))"
         Rscript -e "remotes::install_github('sebsilas/melsim')"
 
     - name: Run pre-commit checks
