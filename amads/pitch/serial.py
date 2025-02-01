@@ -10,7 +10,7 @@ that are specific to tone rows in serial music.
 
 from typing import List, Tuple, Union
 
-from ..pitch.transformations import every_nth, transpose_to
+from .transformations import every_nth, transpose_to
 
 
 def rotate_hexachords(

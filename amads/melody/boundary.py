@@ -6,8 +6,8 @@ Function input:
     Musical score (as specified in basics.py)
 
 Function output:
-    (note offset, strength) list
-    note that since we are dealing with a monophonic score, each offset
+    (note start, strength) list
+    note that since we are dealing with a monophonic score, each start
     corresponds to only 1 unique note, we can ensure that each output
     corresponds to a unique monophonic piece of music
 
@@ -42,12 +42,12 @@ to have wildly different output structures?
 For that matter, what should we do with standardizing output structure?
 Note to strength dictionary? Too complex.
 Since we are only dealing with monophonic scores in these algorithms, we can
-leverage the fact that each note offset has a unique note in the score and
-emit offset and strength pairs...
+leverage the fact that each note start has a unique note in the score and
+emit start and strength pairs...
 """
 
 from ..core.basics import Note, Score
-from .ismonophonic import ismonophonic
+from ..pitch.ismonophonic import ismonophonic
 
 
 def boundary(score: Score):
@@ -55,7 +55,7 @@ def boundary(score: Score):
     Given a score, returns the following:
     (1) If score is not monophonic, we raise an exception
     (2) If score has notes, we return a a list of tuples containing
-    note offset and its corresponding strength, respectively
+    note start and its corresponding strength, respectively
     """
     if not ismonophonic(score):
         raise ValueError("Score must be monophonic")
@@ -66,12 +66,12 @@ def boundary(score: Score):
     notes = list(flattened_score.find_all(Note))
 
     # sort the notes
-    notes.sort(key=lambda note: (note.qstart(), -note.pitch.keynum))
+    notes.sort(key=lambda note: (note.start, -note.pitch.keynum))
 
     # profiles
     pp = [abs(pair[1].keynum - pair[0].keynum) for pair in zip(notes, notes[1:])]
-    po = [pair[1].qstart() - pair[0].qstart() for pair in zip(notes, notes[1:])]
-    pr = [max(0, pair[1].qstart() - pair[0].qstop()) for pair in zip(notes, notes[1:])]
+    po = [pair[1].start - pair[0].start for pair in zip(notes, notes[1:])]
+    pr = [max(0, pair[1].start - pair[0].end) for pair in zip(notes, notes[1:])]
 
     def list_degrees(profile):
         ret_list = [
@@ -105,4 +105,4 @@ def boundary(score: Score):
         b.append(0.25 * sp_elem + 0.5 * so_elem + 0.25 * sr_elem)
     assert len(b) == len(notes)
 
-    return [(note.qstart(), boundary) for (note, boundary) in zip(notes, b)]
+    return [(note.start, boundary) for (note, boundary) in zip(notes, b)]

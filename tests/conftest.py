@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from pytest import fixture
 
 from amads.core.basics import Note
@@ -14,3 +15,7 @@ def twochan_score():
 @fixture
 def twochan_notes(twochan_score):
     return list(twochan_score.flatten(collapse=True).find_all(Note))
+
+
+# Stop matplotlib plot.show() from blocking the tests
+plt.ion()

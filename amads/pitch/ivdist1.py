@@ -32,7 +32,7 @@ def update_id(id: list[float], notes: list[Note], weighted: bool):
                 if weighted:
                     # Since diff ranges from -12 to 12,
                     # diff + 12 prevents negative indicies
-                    id[diff + 12] += prev.dur * note.dur
+                    id[diff + 12] += prev.duration * note.duration
                 else:
                     id[diff + 12] += 1
 

@@ -23,7 +23,7 @@ from typing import List, Union
 
 from ..core.basics import Note, Score
 from ..core.distribution import Distribution
-from .ismonophonic import ismonophonic
+from ..pitch.ismonophonic import ismonophonic
 
 
 def update_dd(
@@ -50,14 +50,14 @@ def update_dd(
     """
     if bin_boundaries:
         for bin, boundary in enumerate(bin_boundaries):
-            if note.dur <= boundary:
+            if note.duration <= boundary:
                 break
         else:
             bin = len(bin_boundaries) - 1
     else:
-        if note.dur <= 0:
+        if note.duration <= 0:
             return None
-        bin = round(2 * math.log2(note.dur)) + 4
+        bin = round(2 * math.log2(note.duration)) + 4
         if bin < 0 or bin > 8:
             return None
 

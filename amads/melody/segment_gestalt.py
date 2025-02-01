@@ -39,8 +39,8 @@ Function output:
     else, 2-tuple of:
     Note here that the clangs and segments will *probably* be represented
     by a collection of scores each...
-    (0) sorted list of offsets denoting clangs boundaries
-    (1) sorted list of offsets denoting segments segment boundaries
+    (0) sorted list of starts denoting clangs boundaries
+    (1) sorted list of starts denoting segments segment boundaries
 
 Some thoughts (and questions):
 (1) Should our output preserve the internal structure of the score
@@ -66,8 +66,8 @@ the *exact* same implementation and 2 filenames...
 from operator import lt
 
 from ..core.basics import Note, Part, Score
-from .ismonophonic import ismonophonic
-from .pitch_mean import pitch_mean
+from ..pitch.ismonophonic import ismonophonic
+from ..pitch.pitch_mean import pitch_mean
 
 
 def construct_score_list(notes, intervals):
@@ -103,9 +103,8 @@ def segment_gestalt(score: Score) -> tuple[list[float], list[float]]:
     Given a score, returns the following:
     (1) If score is not monophonic, we raise an exception
     (2) If score is monophonic, we return a 2-tuple of lists for clang boundary
-    offsets and segment boundary offsets, respectively
+    starts and segment boundary starts, respectively
     """
-    breakpoint()
     if not ismonophonic(score):
         raise Exception("score not monophonic, input is not valid.")
 
@@ -119,10 +118,10 @@ def segment_gestalt(score: Score) -> tuple[list[float], list[float]]:
     notes = list(score.find_all(Note))
 
     # keynum is the true midi pitch value (alt is only there for printing)
-    # sort the notes by qstart, if qstart is equal, sort by pitch
-    # qstart lists the offset start time in beats per quarter note
+    # sort the notes by start, if start is equal, sort by pitch
+    # start lists the start time in beats per quarter note
     # ripped from skyline.py
-    notes.sort(key=lambda note: (note.qstart(), -note.pitch.keynum))
+    notes.sort(key=lambda note: (note.start, -note.pitch.keynum))
 
     if len(notes) <= 0:
         return ([], [])
@@ -131,7 +130,7 @@ def segment_gestalt(score: Score) -> tuple[list[float], list[float]]:
     # calculate clang distances here
     for note_pair in zip(notes[:-1], notes[1:]):
         pitch_diff = note_pair[1].keynum - note_pair[0].keynum
-        onset_diff = note_pair[1].qstart() - note_pair[0].qstart()
+        onset_diff = note_pair[1].start - note_pair[0].start
         cl_values.append(2 * onset_diff + abs(pitch_diff))
 
     # combines the boolean map and the scan function that was done in matlab
@@ -146,10 +145,10 @@ def segment_gestalt(score: Score) -> tuple[list[float], list[float]]:
     cl_indices.extend([idx + 1 for idx in clang_soft_peaks])
     cl_indices.append(len(notes))
 
-    clang_offsets = list(map(lambda i: (notes[i].qstart()), cl_indices[:-1]))
+    clang_starts = list(map(lambda i: (notes[i].start), cl_indices[:-1]))
 
-    if len(clang_offsets) <= 2:
-        return (clang_offsets, [])
+    if len(clang_starts) <= 2:
+        return (clang_starts, [])
 
     # we can probably split the clangs here and organize them into scores
     clang_scores = construct_score_list(notes, zip(cl_indices[:-1], cl_indices[1:]))
@@ -166,19 +165,17 @@ def segment_gestalt(score: Score) -> tuple[list[float], list[float]]:
         # be careful of the indices when calculating segdist here
         local_seg_dist += abs(mean_pitches[i + 1] - mean_pitches[i])
         # first first distance
-        local_seg_dist += (
-            notes[cl_indices[i + 1]].qstart() - notes[cl_indices[i]].qstart()
-        )
+        local_seg_dist += notes[cl_indices[i + 1]].start - notes[cl_indices[i]].start
         # first of next clang to last of distance
         local_seg_dist += abs(
             notes[cl_indices[i + 1]].keynum - notes[cl_indices[i + 1] - 1].keynum
         )
         local_seg_dist += 2 * (
-            notes[cl_indices[i + 1]].qstart() - notes[cl_indices[i + 1] - 1].qstart()
+            notes[cl_indices[i + 1]].start - notes[cl_indices[i + 1] - 1].start
         )
         seg_dist_values.append(local_seg_dist)
     if len(seg_dist_values) < 3:
-        return (clang_offsets, [])
+        return (clang_starts, [])
 
     seg_soft_peaks = find_peaks(seg_dist_values)
     assert seg_soft_peaks[-1] < len(cl_indices) - 1
@@ -188,5 +185,5 @@ def segment_gestalt(score: Score) -> tuple[list[float], list[float]]:
     seg_indices.extend([cl_indices[idx + 1] for idx in seg_soft_peaks])
     seg_indices.append(len(notes))
 
-    segment_offsets = list(map(lambda i: (notes[i].qstart()), seg_indices[:-1]))
-    return (clang_offsets, segment_offsets)
+    segment_starts = list(map(lambda i: (notes[i].start), seg_indices[:-1]))
+    return (clang_starts, segment_starts)

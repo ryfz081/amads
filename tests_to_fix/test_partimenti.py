@@ -10,7 +10,7 @@ https://creativecommons.org/licenses/by-sa/4.0/
 
 import pytest
 
-from amads.resources.partimenti import *
+from amads.schemata.partimenti import *
 
 
 @pytest.mark.parametrize("partimento", [

@@ -43,14 +43,14 @@ def test_import_midi(midi_filename):
 
     assert len(flattened_notes) == len(pm_notes)
 
-    flattened_notes.sort(key=lambda x: (x.offset, x.pitch.keynum))
+    flattened_notes.sort(key=lambda x: (x.delta, x.pitch.keynum))
     pm_notes.sort(key=lambda x: (x.start, x.pitch))
 
-    quarter_note_duration = pm_notes[1].start / flattened_notes[1].offset
+    quarter_note_duration = pm_notes[1].start / flattened_notes[1].delta
 
     for score_note, pm_note in zip(flattened_notes, pm_notes):
         assert score_note.pitch.keynum == pm_note.pitch
-        assert score_note.offset == pytest.approx(pm_note.start / quarter_note_duration)
-        assert score_note.dur == pytest.approx(
+        assert score_note.delta == pytest.approx(pm_note.start / quarter_note_duration)
+        assert score_note.duration == pytest.approx(
             pm_note.end / quarter_note_duration - pm_note.start / quarter_note_duration
         )

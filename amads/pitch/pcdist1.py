@@ -33,7 +33,7 @@ def pcdist1(score: Score, weighted: bool = True) -> list[float]:
         for note in container.find_all(Note):
             pc = note.pitch.pitch_class
             if weighted:
-                pcd[pc] += note.dur
+                pcd[pc] += note.duration
             else:
                 pcd[pc] += 1
     total = sum(pcd)

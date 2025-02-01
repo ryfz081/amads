@@ -14,10 +14,7 @@ https://github.com/MarkGotham/Serial_Analyser
 
 import pytest
 
-from amads.algorithms.pc_set_functions import (
-    pitches_to_prime,
-    set_classes_from_cardinality,
-)
+from amads.pitch.pc_set_functions import pitches_to_prime, set_classes_from_cardinality
 
 
 @pytest.mark.skip(

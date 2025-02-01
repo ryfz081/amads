@@ -44,13 +44,13 @@ class Event:
     anything that takes place in time.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters expressed relative to the parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
 
-    def __init__(self, dur, offset):
-        self.offset = offset
-        self.dur = dur
+    def __init__(self, duration, delta):
+        self.delta = delta
+        self.duration = duration
         self._parent = None
 
     def copy(self):
@@ -60,27 +60,42 @@ class Event:
         raise Exception("Event is abstract, subclass should override deep_copy()")
 
     @property
-    def end_offset(self):
-        return self.offset + self.dur
+    def delta_end(self):
+        return self.delta + self.duration
 
     @property
     def parent(self):
-        return self._parent and self._parent
+        if self._parent is None:
+            return None
+        return self._parent()
 
     @parent.setter
     def parent(self, p):
         self._parent = weakref.ref(p)
 
-    def qstart(self):
+    @property
+    def start(self):
         """Retrieve the start time in quarters."""
         p = self.parent  # save it to prevent race condition
-        if p:
-            return p().qstart() + self.offset
-        else:
-            return self.offset
+        if p is None:
+            return self.delta
+        return p.start + self.delta
 
-    def qstop(self):
-        return self.qstart() + self.dur
+    @property
+    def end(self):
+        return self.start + self.duration
+
+    @start.setter
+    def start(self, value):
+        if self.parent is None:
+            self.delta = value
+        else:
+            self.delta = value - self.parent.start
+
+    @end.setter
+    def end(self, value):
+        self.duration = value - self.start
+        assert self.duration >= 0
 
 
 class Rest(Event):
@@ -88,29 +103,29 @@ class Rest(Event):
     a Measure.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
 
-    def __init__(self, dur=1, offset=0):
-        super().__init__(dur, offset)
+    def __init__(self, duration=1, delta=0):
+        super().__init__(duration, delta)
 
     def copy(self):
         """Make a copy of just this object with no parent."""
-        return Rest(dur=self.dur, offset=self.offset)
+        return Rest(duration=self.duration, delta=self.delta)
 
     def show(self, indent=0):
         print(
             " " * indent,
-            f"Rest at {self.qstart():.3f} ",
-            f"offset {self.offset:.3f} dur {self.dur:.3f}",
+            f"Rest at {self.start:.3f} ",
+            f"delta {self.delta:.3f} duration {self.duration:.3f}",
             sep="",
         )
         return self
 
     def deep_copy(self):
         """Make a deep copy, omitting weak link to parent."""
-        r = Rest(self.dur, self.offset)
+        r = Rest(self.duration, self.delta)
         return r
 
 
@@ -119,8 +134,8 @@ class Note(Event):
     a Measure.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
     # pitch -- a Pitch
     # dynamic -- None, integer, or string
@@ -132,17 +147,17 @@ class Note(Event):
     #        Ties are not slurs. There is no representation for slurs
     #        between notes of different pitches.
 
-    def __init__(self, dur=1, pitch=None, dynamic=None, lyric=None, offset=0):
+    def __init__(self, duration=1, pitch=None, dynamic=None, lyric=None, delta=0):
         """pitch is normally a Pitch, but can be an integer MIDI key number
         that will be converted to a Pitch object.
         """
-        super().__init__(dur, offset)
+        super().__init__(duration, delta)
         if isinstance(pitch, Pitch):
             self.pitch = pitch
         elif pitch:
             self.pitch = Pitch(pitch)
         else:
-            self.pitch = Pitch.C4
+            self.pitch = Pitch(60)
         self.dynamic = dynamic
         self.lyric = lyric
         self.tie = None
@@ -150,11 +165,11 @@ class Note(Event):
     def copy(self):
         """Make a copy of just this object with no parent."""
         n = Note(
-            dur=self.dur,
+            duration=self.duration,
             pitch=self.pitch,
             dynamic=self.dynamic,
             lyric=self.lyric,
-            offset=self.offset,
+            delta=self.delta,
         )
         n.tie = self.tie
         return n
@@ -171,8 +186,8 @@ class Note(Event):
             lyricinfo = " lyric " + self.lyric
         print(
             " " * indent,
-            f"Note at {self.qstart():0.3f} ",
-            f"offset {self.offset:0.3f} dur {self.dur:0.3f} pitch ",
+            f"Note at {self.start:0.3f} ",
+            f"delta {self.delta:0.3f} duration {self.duration:0.3f} pitch ",
             self.name_with_octave,
             tieinfo,
             dynamicinfo,
@@ -233,28 +248,28 @@ class Note(Event):
 class TimeSignature(Event):
     """TimeSignature is a zero-duration Event with timesig info."""
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
     # beat -- the "numerator" of the key signature: beats per measure, a
     #         number, which may be a fraction.
     # beat_type -- the "numerator" of the key signature: a whole number
     #         power of 2, e.g. 1, 2, 4, 8, 16, 32, 64.
 
-    def __init__(self, beat=4, beat_type=4, offset=0):
-        super().__init__(0, offset)
+    def __init__(self, beat=4, beat_type=4, delta=0):
+        super().__init__(0, delta)
         self.beat = beat
         self.beat_type = beat_type
 
     def copy(self):
         """Make a copy of just this object with no parent."""
-        return TimeSignature(self.beat, self.beat_type, offset=self.offset)
+        return TimeSignature(self.beat, self.beat_type, delta=self.delta)
 
     def show(self, indent=0):
         print(
             " " * indent,
-            f"TimeSignature at {self.qstart():0.3f} offset ",
-            f"{self.offset:0.3f}: {self.beat}/{self.beat_type}",
+            f"TimeSignature at {self.start:0.3f} delta ",
+            f"{self.delta:0.3f}: {self.beat}/{self.beat_type}",
             sep="",
         )
         return self
@@ -268,26 +283,26 @@ class TimeSignature(Event):
 class KeySignature(Event):
     """KeySignature is a zero-duration Event with keysig info."""
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
     # keysig -- an integer, number of sharps (if positive) and flats (if
     #         negative), e.g. -3 for Eb major or C minor.
 
-    def __init__(self, keysig=0, offset=0):
-        super().__init__(0, offset)
+    def __init__(self, keysig=0, delta=0):
+        super().__init__(0, delta)
         self.keysig = keysig
 
     def copy(self):
         """Make a copy, omitting weak link to parent."""
-        ks = KeySignature(keysig=self.keysig, offset=self.offset)
+        ks = KeySignature(keysig=self.keysig, delta=self.delta)
         return ks
 
     def show(self, indent=0):
         print(
             " " * indent,
-            f"KeySignature at {self.qstart():0.3f} offset ",
-            f"{self.offset:0.3f}",
+            f"KeySignature at {self.start:0.3f} delta ",
+            f"{self.delta:0.3f}",
             abs(self.keysig),
             " sharps" if self.keysig > 0 else " flats",
             sep="",
@@ -459,13 +474,13 @@ class EventGroup(Event):
     class. Use one of the subclasses: Sequence or Concurrence.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
     # content -- elements contained within this collection
 
-    def __init__(self, offset, dur, content):
-        super().__init__(dur, offset)
+    def __init__(self, delta, duration, content):
+        super().__init__(duration, delta)
         self.content = [] if content is None else content
 
     def copy(self):
@@ -475,8 +490,8 @@ class EventGroup(Event):
         print(
             " " * indent,
             label,
-            f" at {self.qstart():0.3f} offset ",
-            f"{self.offset:0.3f} dur {self.dur:0.3f}",
+            f" at {self.start:0.3f} delta ",
+            f"{self.delta:0.3f} duration {self.duration:0.3f}",
             sep="",
         )
         for elem in self.content:
@@ -515,18 +530,18 @@ class EventGroup(Event):
         return next(measures, "empty") != "empty"
 
     def insert(self, event):
-        """insert an event without any changes to event.offset or
-        self.dur. If the event is out of order, insert it just before
-        the first element with a greater offset. This method is similar
-        to append(), but it has different defaults for offset and
-        update_dur.
+        """insert an event without any changes to event.delta or
+        self.duration. If the event is out of order, insert it just before
+        the first element with a greater delta. This method is similar
+        to append(), but it has different defaults for delta and
+        update_duration.
         """
-        if self.last and event.offset < self.last.offset:
+        if self.last and event.delta < self.last.delta:
             # search in reverse from end
             i = len(self.content) - 2
-            while i >= 0 and self.content[i].offset > event.offset:
+            while i >= 0 and self.content[i].delta > event.delta:
                 i -= 1
-            # now i is either -1 or content[i] <= event.offset, so
+            # now i is either -1 or content[i] <= event.delta, so
             # insert event at content[i+1]
             self.content.insert(i + 1, event)
         else:  # simply append at the end of content:
@@ -546,28 +561,28 @@ class EventGroup(Event):
 
 
 class Sequence(EventGroup):
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
     # content -- elements contained within this collection
 
-    def __init__(self, offset=0, dur=None, content=None):
+    def __init__(self, delta=0, duration=None, content=None):
         """Sequence represents a temporal sequence of music events.
-        dur(ation) defaults to the duration of provided content or 0
+        duration(ation) defaults to the duration of provided content or 0
         if content is empty or None.
         """
         if content is None:
             content = []
-        if dur is None:
+        if duration is None:
             if len(content) == 0:
-                dur = 0
+                duration = 0
             else:
-                dur = content[-1].end_offset
-        super().__init__(offset, dur, content)
+                duration = content[-1].delta_end
+        super().__init__(delta, duration, content)
 
     def copy(self):
         """Make a copy, omitting weak link to parent."""
-        s = Sequence(offset=self.offset, dur=self.dur)
+        s = Sequence(delta=self.delta, duration=self.duration)
         return s
 
     def show(self, indent=0, label="Sequence"):
@@ -580,82 +595,84 @@ class Sequence(EventGroup):
             s.insert(event.deep_copy())
         return s
 
-    def last_qstop(self):
+    @property
+    def last_end(self):
         """return the end time (in quarters) of the last element,
         or the Sequence start time if the Sequence is empty
         """
         if len(self.content) == 0:
-            return self.qstart()
+            return self.start
         else:
-            return self.last.last_qstop()
+            return self.last.last_end
 
-    def last_end_offset(self):
-        """return the end_offset (in quarters) of the last element,
+    @property
+    def last_delta_end(self):
+        """return the delta_end (in quarters) of the last element,
         or 0 if the Sequence is empty
         """
         if len(self.content) == 0:
             return 0
         else:
-            return self.last.last_end_offset()
+            return self.last.last_delta_end
 
-    def append(self, element, offset=None, update_dur=True):
-        """Append an element. If offset is specified, the element is
-        modified to start at this offset, and the duration of self
-        is unchanged. If offset is not specified or None, the element
-        offset is changed to the dur(ation) of self, which is then
+    def append(self, element, delta=None, update_duration=True):
+        """Append an element. If delta is specified, the element is
+        modified to start at this delta, and the duration of self
+        is unchanged. If delta is not specified or None, the element
+        delta is changed to the duration(ation) of self, which is then
         incremented by the duration of element.
         """
-        if offset is None:
-            element.offset = self.dur
-            if update_dur:
-                self.dur += element.dur
+        if delta is None:
+            element.delta = self.duration
+            if update_duration:
+                self.duration += element.duration
         else:
-            element.offset = offset
+            element.delta = delta
         self.insert(element)  # places element in order and sets element parent
 
     def pack(self):
-        """Adjust the content to be sequential, with zero offset for the
-        first element, and each other object at an offset equal to the
-        end_offset of the previous element. The dur(ation) of self is set
-        to the end_offset of the last element. This method essentially,
+        """Adjust the content to be sequential, with zero delta for the
+        first element, and each other object at an delta equal to the
+        delta_end of the previous element. The duration(ation) of self is set
+        to the delta_end of the last element. This method essentially,
         arranges the content to eliminate gaps. pack() works recursively
         on elements that are EventGroups.
         """
-        offset = 0
+        delta = 0
         for elem in self.content:
-            elem.offset = 0
+            elem.delta = 0
             if isinstance(elem, EventGroup):
                 elem.pack()
-            offset += elem.dur
+            delta += elem.duration
 
 
 class Concurrence(EventGroup):
     """Concurrence represents a temporally simultaneous collection
-    of music events (but if elements have a non-zero offset, a Concurrence
+    of music events (but if elements have a non-zero delta, a Concurrence
     can represent events organized over time).  Thus, the main distinction
     between Concurrence and Sequence is the behavior of methods, since both
     classes can represent simultaneous or sequential events.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # content -- elements contained within this collection
 
-    def __init__(self, offset=0, dur=None, content=None):
-        """dur(ation) defaults to the maximum end_offset of provided content
+    def __init__(self, delta=0, duration=None, content=None):
+        """duration(ation) defaults to the maximum delta_end of provided content
         or 0 if content is empty.
         """
         if content is None:
             content = []
-        if dur is None:
-            dur = 0
+        if duration is None:
+            duration = 0
             for elem in content:
-                dur = max(dur, elem.end_offset)
-        super().__init__(offset, dur, content)
+                duration = max(duration, elem.delta_end)
+        super().__init__(delta, duration, content)
 
     def copy(self):
         """Make a copy, omitting weak link to parent."""
-        c = Concurrence(offset=self.offset, dur=self.dur)
+        c = Concurrence(delta=self.delta, duration=self.duration)
         return c
 
     def show(self, indent=0, label="Concurrence"):
@@ -669,34 +686,34 @@ class Concurrence(EventGroup):
         return c
 
     def pack(self):
-        """Adjust the content to offsets of zero. The dur(ation) of self
-        is set to the maximum end_offset of the elements. This method
+        """Adjust the content to deltas of zero. The duration(ation) of self
+        is set to the maximum delta_end of the elements. This method
         essentially, arranges the content to eliminate gaps. pack() works
         recursively on elements that are EventGroups.
         """
-        self.dur = 0
+        self.duration = 0
         for elem in self.content:
-            elem.offset = 0
+            elem.delta = 0
             if isinstance(elem, EventGroup):
                 elem.pack()
-            self.dur = max(self.dur, elem.dur)
+            self.duration = max(self.duration, elem.duration)
 
-    def append(self, element, offset=0, update_dur=True):
-        """Append an element to the content with the given offset.
-        (Specify offset=element.offset to retain the element's offset.)
-        By default, the dur(ation) of self is increased to the
-        end_offset of element if the end_offset is greater than the
-        current dur(ation). To retain the dur(ation) of self, specify
-        update_dur=False.
+    def append(self, element, delta=0, update_duration=True):
+        """Append an element to the content with the given delta.
+        (Specify delta=element.delta to retain the element's delta.)
+        By default, the duration(ation) of self is increased to the
+        delta_end of element if the delta_end is greater than the
+        current duration(ation). To retain the duration(ation) of self, specify
+        update_duration=False.
         """
-        element.offset = offset
+        element.delta = delta
         self.insert(element)
-        if update_dur:
-            self.dur = max(self.dur, element.end_offset)
+        if update_duration:
+            self.duration = max(self.duration, element.delta_end)
 
 
 class Chord(Concurrence):
-    """A Chord is a collection of Notes, normally with offsets of zero
+    """A Chord is a collection of Notes, normally with deltas of zero
     and the same durations and distinct keynums, but this is not enforced.
     The order of notes is arbitrary. Normally, a Chord is a member of a
     Staff. There is no requirement that simultaneous or overlapping notes
@@ -704,13 +721,13 @@ class Chord(Concurrence):
     element of music structure representation. Representation note: An
     alternative representation would be to subclass Note and allow a
     list of pitches, which has the advantage of enforcing the shared
-    offsets and durations. However, there can be ties connected
+    deltas and durations. However, there can be ties connected
     differently to each note within the Chord, thus we use a Concurrence
     with Note objects as elements. Each Note.tie can be different.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # _parent -- weak reference to containing object if any
     # content -- elements contained within this collection
 
@@ -718,11 +735,11 @@ class Chord(Concurrence):
         return super().show(indent, "Chord")
 
     def copy(self):
-        return Chord(offset=self.offset, dur=self.dur)
+        return Chord(delta=self.delta, duration=self.duration)
 
     def deep_copy(self):
         """Make a deep copy, omitting weak link to parent."""
-        m = self.Copy()
+        m = self.copy()
         for event in self.content:
             m.insert(event.deep_copy())
         return m
@@ -734,19 +751,19 @@ class Measure(Sequence):
     are elements of a Staff.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # content -- elements contained within this collection
     # number -- A string or None. The number assigned to the measure in the
     #         score (if any). E.g. "22a".
 
-    def __init__(self, number=None, offset=0, dur=4, content=None):
-        super().__init__(offset, dur, content)
+    def __init__(self, number=None, delta=0, duration=4, content=None):
+        super().__init__(delta, duration, content)
         self.number = number
 
     def copy(self):
         """Make a copy, omitting weak link to parent."""
-        m = Measure(number=self.number, offset=self.offset, dur=self.dur)
+        m = Measure(number=self.number, delta=self.delta, duration=self.duration)
         return m
 
     def show(self, indent=0):
@@ -788,38 +805,38 @@ class Measure(Sequence):
         return measure
 
 
-def note_qstart(note):
+def note_start(note):
     """helper function to sort notes"""
-    return note.qstart()
+    return note.start
 
 
 class Score(Concurrence):
     """A score is a top-level object representing a musical work.
-    Normally, a Score contains Part objects, all with offset zero.
+    Normally, a Score contains Part objects, all with delta zero.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # content -- elements contained within this collection
     # time_map -- a map from quarters to seconds (or seconds to quarters)
     #
     # Additional attributes may be assigned, e.g. 'title', 'source_file',
     # 'composer', etc. (TBD)
 
-    def __init__(self, offset=0, dur=0, content=None, time_map=None):
-        super().__init__(offset, dur, content)
+    def __init__(self, delta=0, duration=0, content=None, time_map=None):
+        super().__init__(delta, duration, content)
         self.time_map = time_map if time_map else TimeMap()
 
     def copy(self):
         """Make a copy, omitting weak link to parent."""
-        s = Score(offset=self.offset, dur=self.dur, time_map=self.time_map)
+        s = Score(delta=self.delta, duration=self.duration, time_map=self.time_map)
         return s
 
     def show(self, indent=0):
         print(
             " " * indent,
-            f"Score at {self.qstart():0.3f} offset ",
-            f"{self.offset:0.3f} dur {self.dur:0.3f}",
+            f"Score at {self.start:0.3f} delta ",
+            f"{self.delta:0.3f} duration {self.duration:0.3f}",
             sep="",
         )
         self.time_map.show(indent + 4)
@@ -910,19 +927,19 @@ class Score(Concurrence):
         score_no_ties = self.strip_ties()  # strip ties
         if collapse:  # similar to Part.flatten() but we have to sort and
             # do some other extra work to put all notes into score
-            score_start = score.qstart()
+            score_start = score.start
             new_part = Part()
-            max_end_offset = 0
+            max_delta_end = 0
             for part in score_no_ties.content:
                 for note in part.find_all(Note):
                     note_copy = note.deep_copy()
-                    # note offset is now relative to start of part:
-                    note_copy.offset = note.qstart() - score_start
-                    max_end_offset = max(max_end_offset, note_copy.end_offset)
+                    # note delta is now relative to start of part:
+                    note_copy.delta = note.start - score_start
+                    max_delta_end = max(max_delta_end, note_copy.delta_end)
                     new_part.insert(note_copy)
-            new_part.content = sorted(new_part.content, key=note_qstart)
+            new_part.content = sorted(new_part.content, key=note_start)
             score.insert(new_part)
-            score.dur = score.qstart() + max_end_offset
+            score.duration = score.start + max_delta_end
         else:
             for part in self.content:
                 score.insert(part.flatten())
@@ -997,15 +1014,15 @@ class Part(Concurrence):
     any other object types. Parts are normally elements of a Score.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # content -- elements contained within this collection
     # number -- None or an integer. Normally, the Parts are numbered according
     #         to their top-to-bottom ordering in the Score, starting with 1.
     # instrument -- None or a string naming the instrument to play this Part.
 
-    def __init__(self, number=None, instrument=None, offset=0, dur=0, content=None):
-        super().__init__(offset, dur, content)
+    def __init__(self, number=None, instrument=None, delta=0, duration=0, content=None):
+        super().__init__(delta, duration, content)
         self.number = number
         self.instrument = instrument
 
@@ -1014,8 +1031,8 @@ class Part(Concurrence):
         p = Part(
             number=self.number,
             instrument=self.instrument,
-            offset=self.offset,
-            dur=self.dur,
+            delta=self.delta,
+            duration=self.duration,
         )
         return p
 
@@ -1068,11 +1085,11 @@ class Part(Concurrence):
         """
         part = self.strip_ties()
         flat = self.copy()
-        part_start = self.qstart()
+        part_start = self.start
         for note in part.find_all(Note):
             note_copy = note.deep_copy()
-            # note offset is now relative to start of part:
-            note_copy.offset = note.qstart() - part_start
+            # note delta is now relative to start of part:
+            note_copy.delta = note.start - part_start
             flat.insert(note_copy)
         return flat
 
@@ -1083,19 +1100,19 @@ class Staff(Sequence):
     normally contains Measure objects and is an element of a Part.
     """
 
-    # offset -- start time in quarters as an offset from parent's start time
-    # dur -- duration in quarters
+    # delta -- start time in quarters as an delta from parent's start time
+    # duration -- duration in quarters
     # content -- elements contained within this collection
     # number -- Normally a Staff is given an integer number where 1 is the
     #         top staff of the part, 2 is the 2nd, etc. number may be None.
 
-    def __init__(self, number=None, offset=0, dur=0, content=None):
-        super().__init__(offset, dur, content)
+    def __init__(self, number=None, delta=0, duration=0, content=None):
+        super().__init__(delta, duration, content)
         self.number = number
 
     def copy(self):
         """Make a shallow copy of just this object with no parent."""
-        return Staff(number=self.number, offset=self.offset, dur=self.dur)
+        return Staff(number=self.number, delta=self.delta, duration=self.duration)
 
     def show(self, indent=0):
         nstr = (" " + str(self.number)) if self.number else ""
@@ -1141,7 +1158,7 @@ class Staff(Sequence):
                         measure.insert(event.copy())
                     elif event.tie == "start":
                         new_event = event.copy()
-                        new_event.dur = self.tied_dur(event, m_index=m_num)
+                        new_event.duration = self.tied_duration(event, m_index=m_num)
                         new_event.tie = None
                         measure.insert(new_event)
                 elif isinstance(event, Chord):
@@ -1151,7 +1168,7 @@ class Staff(Sequence):
                             new_chord.insert(note.copy())
                         elif note.tie == "start":
                             new_note = note.copy()
-                            new_note.dur = self.tied_dur(note, m_index=m_num)
+                            new_note.duration = self.tied_duration(note, m_index=m_num)
                             new_note.tie = None
                             new_chord.insert(new_note)
                     measure.insert(new_chord)
@@ -1160,18 +1177,18 @@ class Staff(Sequence):
             staff.insert(measure)
         return staff
 
-    def tied_dur(self, note, m_index=None):
+    def tied_duration(self, note: Note, m_index=None):
         """Compute the full duration of note as the sum of notes that note
         is tied to. note.tie must be 'start'
         """
-        measure = note.parent()
+        measure = note.parent
         # if note was in chord we need the note's grandparent:
         if isinstance(measure, Chord):
             measure = measure.parent()
         if m_index is None:  # get measure index
             m_index = self.content.index(measure)
         n_index = measure.content.index(note) + 1  # get note index
-        qstart = note.qstart()
+        start = note.start
         # search across all measures for tied-to note:
         while m_index < len(self.content):  # search all measures
             measure = self.content[m_index]
@@ -1180,7 +1197,7 @@ class Staff(Sequence):
                 event = measure.content[n_index]
                 if isinstance(event, Note) and event.keynum == note.keynum:
                     if event.tie == "stop":
-                        return event.qstop() - qstart
+                        return event.end - start
                     elif event.tie != "continue":
                         raise Exception("inconsistent tie attributes or notes")
                 elif isinstance(event, Chord):
@@ -1189,9 +1206,9 @@ class Staff(Sequence):
                         if n.keynum == note.keynum:
                             # add durations until 'stop'
                             if n.tie == "continue" or n.tie == "stop":
-                                dur = n.end_event - note.offset
+                                duration = n.end_event - note.delta
                                 if n.tie == "stop":
-                                    return dur
+                                    return duration
                 n_index += 1
             n_index = 0
             m_index += 1

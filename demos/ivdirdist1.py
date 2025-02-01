@@ -4,9 +4,8 @@ Test the `ivdirdist1` function
 
 import matplotlib.pyplot as plt
 
-from amads.ivdirdist1 import ivdirdist1
+from amads.all import ivdirdist1, partitura_midi_import
 from amads.music import example
-from amads.pt_midi_import import partitura_midi_import
 
 my_midi_file = example.fullpath("/midi/sarabande.mid")
 
