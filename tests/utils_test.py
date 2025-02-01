@@ -1,5 +1,3 @@
-"""Test utilities."""
-
 import unittest
 
 from amads.core.utils import dir2coll, hz2keynum, keyname, keynum2hz
