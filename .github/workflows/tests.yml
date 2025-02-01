@@ -85,9 +85,7 @@ jobs:
 
     - name: Run melsim tests with coverage
       run: |
-        # ci_job(tests_melsim) means that pytest will only run tests marked with
-        # the decorator @only_on_ci_job("tests_melsim")
-        pytest -m "ci_job(tests_melsim)" --cov=./ --cov-report=xml
+        pytest -m "ci_job(name='tests_melsim')" --cov=./ --cov-report=xml
 
     - name: Upload coverage to Codecov
       if: always()
