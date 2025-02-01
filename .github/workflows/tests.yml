@@ -45,6 +45,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
+        flags: python-tests
 
   tests-melsim:
     runs-on: ubuntu-latest
@@ -82,6 +83,14 @@ jobs:
         pip install pytest-cov
         python -c "from amads.melody.similarity.melsim import install_dependencies; install_dependencies()"
 
-    - name: Run melsim tests
+    - name: Run melsim tests with coverage
       run: |
-        pytest tests/test_melsim.py tests/test_demos.py -v
+        pytest tests/test_melsim.py tests/test_demos.py -v --cov=./ --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      if: always()
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+        flags: melsim-tests
