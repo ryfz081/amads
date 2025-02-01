@@ -1,7 +1,42 @@
+"""Test utilities."""
+
+import functools
+import os
 import unittest
+
+import pytest
 
 from amads.core.utils import dir2coll, hz2keynum, keyname, keynum2hz
 from amads.music import example
+
+
+def only_on_ci_job(job_name):
+    """
+    If the test is running on CI, skip it unless it's running on the specified CI job.
+
+    Parameters
+    ----------
+    job_name : str
+        Name of the CI job this test should run on
+
+    Returns
+    -------
+    callable
+        Decorator that skips the test if not on the specified CI job
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if os.environ.get("CI"):
+                current_job = os.environ.get("GITHUB_JOB")
+                if current_job != job_name:
+                    pytest.skip(f"Test only runs on {job_name} CI job")
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class TestUntils(unittest.TestCase):
