@@ -35,7 +35,7 @@ Score (one per musical work or movement)
 import functools
 import weakref
 from math import floor
-from typing import List, Union
+from typing import List, Optional, Union
 
 from .time_map import TimeMap
 
@@ -829,19 +829,30 @@ class Score(Concurrence):
         self.time_map = time_map if time_map else TimeMap()
 
     @classmethod
-    def from_melody(cls, pitches: List[Union[int, Pitch]], deltas=None, durations=None):
-        """Create a Score from lists of pitches, deltas, and durations.
+    def from_melody(
+        cls,
+        pitches: List[Union[int, Pitch]],
+        durations: Optional[Union[float, List[float]]] = 1.0,
+        iois: Optional[Union[float, List[float]]] = None,
+        deltas: Optional[List[float]] = None,
+    ):
+        """Create a Score from a list of pitches and optional timing information.
+        Creates a monophonic melody where notes cannot overlap in time.
 
         Parameters
         ----------
-        pitches :
-            A list of pitches, specified either as MIDI note numbers or as Pitch objects.
-        deltas : list of float, optional
-            Start times in quarters relative to the score's start. If not provided,
-            defaults to [0, 1, 2, ...].
-        durations : list of float, optional
-            Durations in quarters for each note. If not provided, defaults to
-            1.0 for each note.
+        pitches : list of int or list of Pitch
+            MIDI note numbers or Pitch objects for each note
+        durations : float or list of float, optional
+            Durations in quarters for each note. If a scalar value, it will be repeated
+            for all notes. Defaults to 1.0 (quarter notes).
+        iois : float or list of float or None, optional
+            Inter-onset intervals in quarters between successive notes. If a scalar value,
+            it will be repeated for all notes. If not provided and deltas is None,
+            defaults to using the durations (notes placed sequentially without overlap).
+        deltas : list of float or None, optional
+            Start times in quarters relative to the melody's start. Cannot be used together
+            with iois. If both are None, defaults to using durations as IOIs.
 
         Returns
         -------
@@ -851,13 +862,16 @@ class Score(Concurrence):
         Raises
         ------
         ValueError
-            If input lists have different lengths or are empty
+            If input lists have different lengths
+            If the pitches list is empty
+            If both iois and deltas are specified
+            If any notes overlap in time (monophonic melody only)
 
         Examples
         --------
-        Create a simple C major scale with default timing:
+        Create a simple C major scale with default timing (sequential quarter notes):
 
-        >>> score = Score.from_melody([60, 62, 64, 65, 67, 69, 71, 72])
+        >>> score = Score.from_melody([60, 62, 64, 65, 67, 69, 71, 72])  # all quarter notes
         >>> notes = score.content[0].content
         >>> len(notes)  # number of notes in first part
         8
@@ -866,27 +880,112 @@ class Score(Concurrence):
         >>> score.duration  # last note ends at t=8
         8.0
 
-        Create three quarter notes with custom timing:
+        Create three notes with varying durations (placed sequentially):
 
         >>> score = Score.from_melody(
         ...     pitches=[60, 62, 64],  # C4, D4, E4
-        ...     deltas=[1.0, 2.0, 4.0],  # start times
-        ...     durations=[0.5, 1.0, 2.0]  # note lengths
+        ...     durations=[0.5, 1.0, 2.0],  # note lengths determine spacing
         ... )
-        >>> score.duration  # last note ends at t=6
-        6.0
+        >>> score.duration  # last note ends at t=3.5
+        3.5
+
+        Create three notes with custom IOIs (non-overlapping):
+
+        >>> score = Score.from_melody(
+        ...     pitches=[60, 62, 64],  # C4, D4, E4
+        ...     durations=1.0,  # quarter notes
+        ...     iois=2.0,  # 2 beats between each note start
+        ... )
+        >>> score.duration  # last note ends at t=5
+        5.0
+
+        Create three notes with explicit deltas:
+
+        >>> score = Score.from_melody(
+        ...     pitches=[60, 62, 64],  # C4, D4, E4
+        ...     durations=1.0,  # quarter notes
+        ...     deltas=[0.0, 2.0, 4.0],  # start times 2 beats apart
+        ... )
+        >>> score.duration  # last note ends at t=5
+        5.0
+
+        The following raises a ValueError due to overlapping notes:
+
+        >>> try:
+        ...     score = Score.from_melody(
+        ...         pitches=[60, 62],
+        ...         durations=2.0,  # half notes
+        ...         iois=1.0,  # but only 1 beat apart
+        ...     )
+        ... except ValueError as e:
+        ...     print(str(e))
+        Notes overlap: note 0 ends at 2.00 but note 1 starts at 1.00
         """
         if len(pitches) == 0:
             raise ValueError("Pitches list cannot be empty")
 
-        # Default to sequential deltas [0, 1, 2, ...] and durations of 1.0
-        if deltas is None:
-            deltas = [float(i) for i in range(len(pitches))]
-        if durations is None:
-            durations = [1.0] * len(pitches)
+        if iois is not None and deltas is not None:
+            raise ValueError("Cannot specify both iois and deltas")
+
+        # Convert scalar durations to list
+        if isinstance(durations, (int, float)):
+            durations = [float(durations)] * len(pitches)
+
+        # If deltas are provided, use them directly
+        if deltas is not None:
+            if len(deltas) != len(pitches):
+                raise ValueError("deltas list must have same length as pitches")
+            deltas = [float(d) for d in deltas]
+
+        # Otherwise convert IOIs to deltas
+        else:
+            # If no IOIs provided, use durations as default IOIs
+            if iois is None:
+                iois = durations[:-1]  # last duration not needed for IOIs
+            # Convert scalar IOIs to list
+            elif isinstance(iois, (int, float)):
+                iois = [float(iois)] * (len(pitches) - 1)
+
+            # Validate IOIs length
+            if len(iois) != len(pitches) - 1:
+                raise ValueError("iois list must have length len(pitches) - 1")
+
+            # Convert IOIs to deltas
+            deltas = [0.0]  # first note starts at 0
+            current_time = 0.0
+            for ioi in iois:
+                current_time += float(ioi)
+                deltas.append(current_time)
 
         if not (len(pitches) == len(deltas) == len(durations)):
             raise ValueError("All input lists must have the same length")
+
+        return cls._from_melody(pitches, deltas, durations)
+
+    @classmethod
+    def _from_melody(
+        cls,
+        pitches: List[Union[int, Pitch]],
+        deltas: List[float],
+        durations: List[float],
+    ) -> "Score":
+        """Helper function to create a Score from preprocessed lists of pitches, deltas, and durations.
+
+        All inputs must be lists of the same length, with numeric values already converted to float.
+
+        Raises
+        ------
+        ValueError
+            If any notes overlap in time (monophonic melody only)
+        """
+        # Check for overlapping notes
+        for i in range(len(deltas) - 1):
+            current_end = deltas[i] + durations[i]
+            next_start = deltas[i + 1]
+            if current_end > next_start:
+                raise ValueError(
+                    f"Notes overlap: note {i} ends at {current_end:.2f} but note {i + 1} starts at {next_start:.2f}"
+                )
 
         score = cls()
         part = Part()
@@ -896,7 +995,7 @@ class Score(Concurrence):
         for pitch, delta, duration in zip(pitches, deltas, durations):
             if not isinstance(pitch, Pitch):
                 pitch = Pitch(pitch)
-            note = Note(duration=float(duration), pitch=pitch, delta=float(delta))
+            note = Note(duration=duration, pitch=pitch, delta=delta)
             part.insert(note)
 
         # Set the score duration to the end of the last note
