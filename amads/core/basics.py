@@ -35,6 +35,7 @@ Score (one per musical work or movement)
 import functools
 import weakref
 from math import floor
+from typing import List, Union
 
 from .time_map import TimeMap
 
@@ -828,13 +829,13 @@ class Score(Concurrence):
         self.time_map = time_map if time_map else TimeMap()
 
     @classmethod
-    def from_melody(cls, pitches, deltas=None, durations=None):
+    def from_melody(cls, pitches: List[Union[int, Pitch]], deltas=None, durations=None):
         """Create a Score from lists of pitches, deltas, and durations.
 
         Parameters
         ----------
-        pitches : list of int
-            MIDI note numbers for each note
+        pitches :
+            A list of pitches, specified either as MIDI note numbers or as Pitch objects.
         deltas : list of float, optional
             Start times in quarters relative to the score's start. If not provided,
             defaults to [0, 1, 2, ...].
@@ -893,6 +894,8 @@ class Score(Concurrence):
 
         # Create notes and add them to the part
         for pitch, delta, duration in zip(pitches, deltas, durations):
+            if not isinstance(pitch, Pitch):
+                pitch = Pitch(pitch)
             note = Note(duration=float(duration), pitch=pitch, delta=float(delta))
             part.insert(note)
 
