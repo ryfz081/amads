@@ -37,7 +37,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=./ --cov-report=xml --ignore=tests/test_melsim.py
+        python -c "from amads.ci import run_main_tests; run_main_tests()"
 
     - name: Upload coverage to Codecov
       if: always() && matrix.python-version == '3.11'
@@ -85,7 +85,7 @@ jobs:
 
     - name: Run melsim tests with coverage
       run: |
-        pytest -m "ci_job(name='tests_melsim')" --cov=./ --cov-report=xml
+        python -c "from amads.ci import run_ci_group_tests; run_ci_group_tests('tests_melsim')"
 
     - name: Upload coverage to Codecov
       if: always()

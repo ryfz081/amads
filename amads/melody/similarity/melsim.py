@@ -97,6 +97,9 @@ def load_melsim():
 
 
 def requires_melsim(func):
+    from functools import wraps
+
+    @wraps(func)
     def wrapper(*args, **kwargs):
         load_melsim()
         return func(*args, **kwargs)
@@ -149,15 +152,48 @@ def import_packages():
 
 @requires_melsim
 def get_similarity(melodies: list[Score], method: str) -> dict:
-    """
-    Calculate pairwise similarities between all melodies using the specified method.
+    """Calculate pairwise similarities between all melodies using the specified method.
 
-    Args:
-        melodies: List of Score objects containing monophonic melodies
-        method: Name of the similarity method to use
+    Parameters
+    ----------
+    melodies : list[Score]
+        List of Score objects containing monophonic melodies
+    method : str
+        Name of the similarity method to use
 
-    Returns:
+    Returns
+    -------
+    dict
         Dictionary containing pairwise similarities with normal float values
+
+    Examples
+    --------
+    >>> from amads.core.basics import Note, Part, Score
+    >>> # Create two simple melodies
+    >>> def create_score(melody):
+    ...     score = Score()
+    ...     part = Part()
+    ...     current_time = 0
+    ...     for pitch, duration in melody:
+    ...         note = Note(duration=duration, pitch=pitch, delta=current_time)
+    ...         part.insert(note)
+    ...         current_time += duration
+    ...     part.duration = current_time
+    ...     score.insert(part)
+    ...     score.duration = current_time
+    ...     return score
+    >>> # First melody: C4-D4-E4-F4
+    >>> melody1 = create_score([(60, 1), (62, 1), (64, 1), (65, 1)])
+    >>> # Second melody: C4-D4-E4-G4 (last note different)
+    >>> melody2 = create_score([(60, 1), (62, 1), (64, 1), (67, 1)])
+    >>> # Calculate similarity using Jaccard method
+    >>> similarities = get_similarity([melody1, melody2], 'Jaccard')
+    >>> # The result is a dictionary with melody pairs as keys
+    >>> list(similarities.keys())
+    [('melody_1', 'melody_2')]
+    >>> # Similarity value is between 0 and 1
+    >>> 0 <= similarities[('melody_1', 'melody_2')] <= 1
+    True
     """
     n = len(melodies)
     similarities = np.zeros((n, n))

@@ -19,9 +19,3 @@ def twochan_notes(twochan_score):
 
 # Stop matplotlib plot.show() from blocking the tests
 plt.ion()
-
-
-def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "ci_job(name): mark test to run only on specified CI job"
-    )
