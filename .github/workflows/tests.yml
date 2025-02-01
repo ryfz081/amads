@@ -40,6 +40,15 @@ jobs:
     - name: Setup r2u
       uses: eddelbuettel/github-actions/r2u-setup@master
 
+    - name: Install system dependencies
+      run: |
+        apt-get update
+        apt-get install -y \
+          libdeflate-dev \
+          liblzma-dev \
+          libbz2-dev \
+          libtirpc-dev
+
     # # When using setup-python with rocker/r2u:22.04, pip is not available for some reason
     # - name: Install pip
     #   run: |
