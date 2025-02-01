@@ -832,24 +832,26 @@ class Score(Concurrence):
     def from_melody(
         cls,
         pitches: List[Union[int, Pitch]],
-        durations: Optional[Union[float, List[float]]] = 1.0,
+        durations: Union[float, List[float]] = 1.0,
         iois: Optional[Union[float, List[float]]] = None,
         deltas: Optional[List[float]] = None,
     ):
-        """Create a Score from a list of pitches and optional timing information.
-        Creates a monophonic melody where notes cannot overlap in time.
+        """Create a Score from a melody specified as a list of pitches and optional timing information.
+
 
         Parameters
         ----------
         pitches : list of int or list of Pitch
-            MIDI note numbers or Pitch objects for each note
-        durations : float or list of float, optional
+            MIDI note numbers or Pitch objects for each note;
+            cannot be empty
+        durations : float or list of float
             Durations in quarters for each note. If a scalar value, it will be repeated
             for all notes. Defaults to 1.0 (quarter notes).
         iois : float or list of float or None, optional
             Inter-onset intervals in quarters between successive notes. If a scalar value,
             it will be repeated for all notes. If not provided and deltas is None,
-            defaults to using the durations (notes placed sequentially without overlap).
+            takes values from the durations argument, assuming that notes are placed sequentially
+            without overlap.
         deltas : list of float or None, optional
             Start times in quarters relative to the melody's start. Cannot be used together
             with iois. If both are None, defaults to using durations as IOIs.
@@ -858,14 +860,6 @@ class Score(Concurrence):
         -------
         Score
             A new Score object containing the melody in a single part
-
-        Raises
-        ------
-        ValueError
-            If input lists have different lengths
-            If the pitches list is empty
-            If both iois and deltas are specified
-            If any notes overlap in time (monophonic melody only)
 
         Examples
         --------
@@ -880,16 +874,16 @@ class Score(Concurrence):
         >>> score.duration  # last note ends at t=8
         8.0
 
-        Create three notes with varying durations (placed sequentially):
+        Create three notes with varying durations:
 
         >>> score = Score.from_melody(
         ...     pitches=[60, 62, 64],  # C4, D4, E4
-        ...     durations=[0.5, 1.0, 2.0],  # note lengths determine spacing
+        ...     durations=[0.5, 1.0, 2.0],
         ... )
         >>> score.duration  # last note ends at t=3.5
         3.5
 
-        Create three notes with custom IOIs (non-overlapping):
+        Create three notes with custom IOIs:
 
         >>> score = Score.from_melody(
         ...     pitches=[60, 62, 64],  # C4, D4, E4
@@ -972,12 +966,14 @@ class Score(Concurrence):
         """Helper function to create a Score from preprocessed lists of pitches, deltas, and durations.
 
         All inputs must be lists of the same length, with numeric values already converted to float.
-
-        Raises
-        ------
-        ValueError
-            If any notes overlap in time (monophonic melody only)
         """
+        if not (len(pitches) == len(deltas) == len(durations)):
+            raise ValueError("All inputs must be lists of the same length")
+        if not all(isinstance(x, float) for x in deltas):
+            raise ValueError("All deltas must be floats")
+        if not all(isinstance(x, float) for x in durations):
+            raise ValueError("All durations must be floats")
+
         # Check for overlapping notes
         for i in range(len(deltas) - 1):
             current_end = deltas[i] + durations[i]
