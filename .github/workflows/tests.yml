@@ -84,4 +84,4 @@ jobs:
 
     - name: Run melsim tests
       run: |
-        pytest tests/test_melsim.py -v
+        pytest tests/test_melsim.py tests/test_demos.py -v

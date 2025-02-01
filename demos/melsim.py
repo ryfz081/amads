@@ -4,9 +4,16 @@ Example usage of the melsim module.
 
 from amads.core.basics import Note, Part, Score
 from amads.melody.similarity import melsim
+from amads.melody.similarity.melsim import check_packages_installed
+from amads.utils import check_python_package
 
 # Uses @pmcharrison's create_score function in PR #58
 # TODO: Update after PR #58 is merged to call from basics.py instead
+
+
+def test_check_dependencies():
+    check_python_package("rpy2")
+    check_packages_installed()
 
 
 def create_score(melody):
