@@ -85,7 +85,7 @@ jobs:
 
     - name: Run melsim tests with coverage
       run: |
-        pytest tests/test_melsim.py tests/test_demos.py -v --cov=./ --cov-report=xml
+        pytest -m "ci_job(tests-melsim)" --cov=./ --cov-report=xml
 
     - name: Upload coverage to Codecov
       if: always()

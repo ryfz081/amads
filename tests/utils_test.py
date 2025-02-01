@@ -11,8 +11,9 @@ from amads.music import example
 
 
 def only_on_ci_job(job_name):
-    """
-    If the test is running on CI, skip it unless it's running on the specified CI job.
+    """Skip test unless it's running on the specified CI job.
+
+    Note: the test will still run locally, this decorator only affects CI jobs.
 
     Parameters
     ----------
@@ -27,6 +28,7 @@ def only_on_ci_job(job_name):
 
     def decorator(func):
         @functools.wraps(func)
+        @pytest.mark.ci_job(job_name)
         def wrapper(*args, **kwargs):
             if os.environ.get("CI"):
                 current_job = os.environ.get("GITHUB_JOB")
