@@ -75,9 +75,12 @@ from amads.utils import check_python_package
 
 base_packages = ["base", "utils"]
 cran_packages = ["tibble", "R6", "remotes"]
-github_packages = ["melsim"]
+
+# TODO: Remove itembankr once melsim adds it to its dependencies
+github_packages = ["melsim", "itembankr"]
 github_repos = {
     "melsim": "sebsilas/melsim",
+    "itembankr": "sebsilas/itembankr",
 }
 
 R = SimpleNamespace()
