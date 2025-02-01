@@ -21,6 +21,6 @@ def test_demos_run_without_errors(script):
         )
 
     if script == "melsim.py":
-        only_on_ci_job("tests-melsim")(run_demo)(script)
+        only_on_ci_job("tests_melsim")(run_demo)(script)
     else:
         run_demo(script)
