@@ -842,8 +842,7 @@ class Score(Concurrence):
         Parameters
         ----------
         pitches : list of int or list of Pitch
-            MIDI note numbers or Pitch objects for each note;
-            cannot be empty
+            MIDI note numbers or Pitch objects for each note.
         durations : float or list of float
             Durations in quarters for each note. If a scalar value, it will be repeated
             for all notes. Defaults to 1.0 (quarter notes).
@@ -859,7 +858,8 @@ class Score(Concurrence):
         Returns
         -------
         Score
-            A new Score object containing the melody in a single part
+            A new Score object containing the melody in a single part.
+            If pitches is empty, returns a score with an empty part.
 
         Examples
         --------
@@ -902,21 +902,9 @@ class Score(Concurrence):
         ... )
         >>> score.duration  # last note ends at t=5
         5.0
-
-        The following raises a ValueError due to overlapping notes:
-
-        >>> try:
-        ...     score = Score.from_melody(
-        ...         pitches=[60, 62],
-        ...         durations=2.0,  # half notes
-        ...         iois=1.0,  # but only 1 beat apart
-        ...     )
-        ... except ValueError as e:
-        ...     print(str(e))
-        Notes overlap: note 0 ends at 2.00 but note 1 starts at 1.00
         """
         if len(pitches) == 0:
-            raise ValueError("Pitches list cannot be empty")
+            return cls._from_melody(pitches=[], deltas=[], durations=[])
 
         if iois is not None and deltas is not None:
             raise ValueError("Cannot specify both iois and deltas")
@@ -999,6 +987,8 @@ class Score(Concurrence):
             score.duration = float(
                 max(delta + duration for delta, duration in zip(deltas, durations))
             )
+        else:
+            score.duration = 0.0
 
         return score
 
