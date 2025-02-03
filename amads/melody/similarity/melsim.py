@@ -200,7 +200,7 @@ def get_similarity(melodies: list[Score], method: str) -> dict:
 
     # Load all melodies into R
     for i, melody in enumerate(melodies):
-        pass_melody_to_r(melody, f"melody_{i + 1}")
+        _pass_melody_to_r(melody, f"melody_{i + 1}")
 
     # Load the similarity measure
     load_similarity_measure(method)
@@ -222,7 +222,7 @@ def get_similarity(melodies: list[Score], method: str) -> dict:
 loaded_melodies = {}
 
 
-def pass_melody_to_r(melody: Score, name: str):
+def _pass_melody_to_r(melody: Score, name: str):
     """Convert a Score to a format compatible with melsim R package.
 
     Args:
@@ -271,14 +271,17 @@ def load_similarity_measure(method: str):
     )
 
 
+@requires_melsim
 def _get_similarity(melody_1: str, melody_2: str, method: str):
     """
     Use the melsim R package to get the similarity between two melodies.
 
     Args:
-        melody_1: Name of the first melody. This should have already been passed to R (see pass_melody_to_r).
-        melody_2: Name of the second melody. This should have already been passed to R (see pass_melody_to_r).
-        method: Name of the similarity method. This should have already been loaded (see load_similarity_measure).
+        melody_1: Name of the first melody. This should have already been passed to R
+        (see _pass_melody_to_r).
+        melody_2: Name of the second melody. This should have already been passed to R.
+        method: Name of the similarity method. This should have already been loaded
+        (see load_similarity_measure).
 
     Returns:
         The similarity between the two melodies
