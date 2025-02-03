@@ -3,10 +3,12 @@ This is a Python wrapper for the R package 'melsim' (https://github.com/sebsilas
 This wrapper seeks to allow the user to easily interface with the melsim package using
 the Score objects in AMADS.
 
-Melsim is a package for computing similarity between melodies. It is based on SIMILE, which was
-written by Daniel Müllensiefen and Klaus Frieler in 2003/2004. Melsim is used to compare two
-or more melodies pairwise across a range of similarity measures. Not all similarity measures
-are implemented in melsim, but the ones that are can be used in AMADS.
+Melsim is a package for computing similarity between melodies, and was written by
+Sebastian Silas (https://sebsilas.com/). It is currently maintained by himself and
+Klaus Frieler.
+It is based on SIMILE, which was written by Daniel Müllensiefen and Klaus Frieler in 2003/2004.
+Melsim is used to compare two or more melodies pairwise across a range of similarity measures.
+Not all similarity measures are implemented in melsim, but the ones that are can be used in AMADS.
 
 All of the following similarity measures are implemented and functional in melsim:
 Please be aware that the names of the similarity measures are case-sensitive.
@@ -63,17 +65,17 @@ The following similarity measures are not currently functional in melsim:
 10       sim_emd (special)
 """
 
-from functools import cache
+from functools import cache, wraps
 from types import SimpleNamespace
 
 from amads.core.basics import Note, Score
 from amads.pitch.ismonophonic import ismonophonic
-from amads.utils import check_python_package
+from amads.utils import check_python_package_installed
 
-base_packages = ["base", "utils"]
-cran_packages = ["tibble", "R6", "remotes"]
+r_base_packages = ["base", "utils"]
+r_cran_packages = ["tibble", "R6", "remotes"]
 
-github_packages = ["melsim"]
+r_github_packages = ["melsim"]
 github_repos = {
     "melsim": "sebsilas/melsim",
 }
@@ -83,18 +85,17 @@ R = SimpleNamespace()
 
 @cache
 def load_melsim():
-    check_python_package("pandas")
-    check_python_package("rpy2")
+    check_python_package_installed("pandas")
+    check_python_package_installed("rpy2")
 
     from rpy2.robjects import pandas2ri
 
     pandas2ri.activate()
-    check_packages_installed()
+    check_r_packages_installed()
     import_packages()
 
 
 def requires_melsim(func):
-    from functools import wraps
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -104,10 +105,10 @@ def requires_melsim(func):
     return wrapper
 
 
-def check_packages_installed(install_missing: bool = False):
+def check_r_packages_installed(install_missing: bool = False):
     from rpy2.robjects.packages import isinstalled
 
-    for package in cran_packages + github_packages:
+    for package in r_cran_packages + r_github_packages:
         if not isinstalled(package):
             if install_missing:
                 install_r_package(package)
@@ -122,11 +123,11 @@ def check_packages_installed(install_missing: bool = False):
 def install_r_package(package: str):
     from rpy2.robjects.packages import importr
 
-    if package in cran_packages:
+    if package in r_cran_packages:
         print(f"Installing CRAN package '{package}'...")
         utils = importr("utils")
         utils.install_packages(package)
-    elif package in github_packages:
+    elif package in r_github_packages:
         print(f"Installing GitHub package '{package}'...")
         remotes = importr("remotes")
         repo = github_repos[package]
@@ -136,26 +137,26 @@ def install_r_package(package: str):
 
 
 def install_dependencies():
-    check_packages_installed(install_missing=True)
+    check_r_packages_installed(install_missing=True)
 
 
 def import_packages():
     from rpy2.robjects.packages import importr
 
-    all_packages = base_packages + cran_packages + github_packages
+    all_packages = r_base_packages + r_cran_packages + r_github_packages
     for package in all_packages:
         setattr(R, package, importr(package))
 
 
 @requires_melsim
-def get_similarity(melody1: Score, melody2: Score, method: str) -> float:
+def get_similarity(melody_1: Score, melody_2: Score, method: str) -> float:
     """Calculate similarity between two melodies using the specified method.
 
     Parameters
     ----------
-    melody1 : Score
+    melody_1 : Score
         First Score object containing a monophonic melody
-    melody2 : Score
+    melody_2 : Score
         Second Score object containing a monophonic melody
     method : str
         Name of the similarity method to use
@@ -165,19 +166,29 @@ def get_similarity(melody1: Score, melody2: Score, method: str) -> float:
     float
         Similarity value between the two melodies
 
+    Raises
+    ------
+    ValueError
+        If the number of melodies is not exactly two.
+
     Examples
     --------
     >>> from amads.core.basics import Score
     >>> # Create two simple melodies using from_melody
-    >>> melody1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
-    >>> melody2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
+    >>> melody_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
+    >>> melody_2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
     >>> # Calculate similarity using Jaccard method
-    >>> similarity = get_similarity(melody1, melody2, 'Jaccard')
-    >>> 0 <= similarity <= 1
+    >>> similarity = get_similarity(melody_1, melody_2, 'Jaccard')
+    >>> 0 < similarity < 1
+    True
+    >>> # Verify that similarity between the same melody is 1
+    >>> similarity = get_similarity(melody_1, melody_1, 'Jaccard')
+    >>> similarity == 1
     True
     """
-    r_load_melody(melody1, "melody_1")
-    r_load_melody(melody2, "melody_2")
+
+    r_load_melody(melody_1, "melody_1")
+    r_load_melody(melody_2, "melody_2")
     load_similarity_measure(method)
     return r_get_similarity("melody_1", "melody_2", method)
 

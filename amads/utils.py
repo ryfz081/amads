@@ -27,7 +27,7 @@ def float_range(start: float, end: Optional[float], step: float) -> Iterator[flo
         curr += step
 
 
-def check_python_package(package_name: str):
+def check_python_package_installed(package_name: str):
     """
     Check if a Python package is installed, raise error if not.
 

@@ -4,17 +4,17 @@ Example usage of the melsim module.
 
 from amads.core.basics import Score
 from amads.melody.similarity.melsim import (
-    check_packages_installed,
+    check_r_packages_installed,
     get_similarity,
     r_get_similarity,
     r_load_melody,
 )
-from amads.utils import check_python_package
+from amads.utils import check_python_package_installed
 
 
 def test_check_dependencies():
-    check_python_package("rpy2")
-    check_packages_installed()
+    check_python_package_installed("rpy2")
+    check_r_packages_installed()
 
 
 test_check_dependencies()
