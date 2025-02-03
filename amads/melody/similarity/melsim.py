@@ -64,10 +64,7 @@ The following similarity measures are not currently functional in melsim:
 """
 
 from functools import cache
-from itertools import combinations
 from types import SimpleNamespace
-
-import numpy as np
 
 from amads.core.basics import Note, Score
 from amads.pitch.ismonophonic import ismonophonic
@@ -151,78 +148,45 @@ def import_packages():
 
 
 @requires_melsim
-def get_similarity(melodies: list[Score], method: str) -> dict:
-    """Calculate pairwise similarities between all melodies using the specified method.
+def get_similarity(melody1: Score, melody2: Score, method: str) -> float:
+    """Calculate similarity between two melodies using the specified method.
 
     Parameters
     ----------
-    melodies : list[Score]
-        List of Score objects containing monophonic melodies
+    melody1 : Score
+        First Score object containing a monophonic melody
+    melody2 : Score
+        Second Score object containing a monophonic melody
     method : str
         Name of the similarity method to use
 
     Returns
     -------
-    dict
-        Dictionary containing pairwise similarities with normal float values
+    float
+        Similarity value between the two melodies
 
     Examples
     --------
-    >>> from amads.core.basics import Note, Part, Score
-    >>> # Create two simple melodies
-    >>> def create_score(melody):
-    ...     score = Score()
-    ...     part = Part()
-    ...     current_time = 0
-    ...     for pitch, duration in melody:
-    ...         note = Note(duration=duration, pitch=pitch, delta=current_time)
-    ...         part.insert(note)
-    ...         current_time += duration
-    ...     part.duration = current_time
-    ...     score.insert(part)
-    ...     score.duration = current_time
-    ...     return score
-    >>> # First melody: C4-D4-E4-F4
-    >>> melody1 = create_score([(60, 1), (62, 1), (64, 1), (65, 1)])
-    >>> # Second melody: C4-D4-E4-G4 (last note different)
-    >>> melody2 = create_score([(60, 1), (62, 1), (64, 1), (67, 1)])
+    >>> from amads.core.basics import Score
+    >>> # Create two simple melodies using from_melody
+    >>> melody1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
+    >>> melody2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
     >>> # Calculate similarity using Jaccard method
-    >>> similarities = get_similarity([melody1, melody2], 'Jaccard')
-    >>> # The result is a dictionary with melody pairs as keys
-    >>> list(similarities.keys())
-    [('melody_1', 'melody_2')]
-    >>> # Similarity value is between 0 and 1
-    >>> 0 <= similarities[('melody_1', 'melody_2')] <= 1
+    >>> similarity = get_similarity(melody1, melody2, 'Jaccard')
+    >>> 0 <= similarity <= 1
     True
     """
-    n = len(melodies)
-    similarities = np.zeros((n, n))
-
-    # Load all melodies into R
-    for i, melody in enumerate(melodies):
-        _pass_melody_to_r(melody, f"melody_{i + 1}")
-
-    # Load the similarity measure
+    r_load_melody(melody1, "melody_1")
+    r_load_melody(melody2, "melody_2")
     load_similarity_measure(method)
-    # Calculate pairwise similarities
-    for i, j in combinations(range(n), 2):
-        sim = _get_similarity(f"melody_{i + 1}", f"melody_{j + 1}", method)
-        similarities[i, j] = sim
-        similarities[j, i] = sim
-
-    # Convert to dictionary of melody pairs and similarity values
-    similarity_dict = {}
-    for i, j in combinations(range(n), 2):
-        key = (f"melody_{i + 1}", f"melody_{j + 1}")
-        similarity_dict[key] = float(similarities[i, j])
-
-    return similarity_dict
+    return r_get_similarity("melody_1", "melody_2", method)
 
 
 loaded_melodies = {}
 
 
-def _pass_melody_to_r(melody: Score, name: str):
+@requires_melsim
+def r_load_melody(melody: Score, name: str):
     """Convert a Score to a format compatible with melsim R package.
 
     Args:
@@ -272,22 +236,32 @@ def load_similarity_measure(method: str):
 
 
 @requires_melsim
-def _get_similarity(melody_1: str, melody_2: str, method: str):
+def r_get_similarity(melody_1: str, melody_2: str, method: str) -> float:
     """
-    Use the melsim R package to get the similarity between two melodies.
+    Use the melsim R package to get the similarity between two or more melodies.
+    This version of get_similarity is designed to be used alongside r_load_melody.
+    The user should call r_load_melody for each melody they wish to compare, and then
+    call r_get_similarity for each pair of melodies. This is more efficient than
+    calling get_similarity for each pair of melodies, as the melodies are only loaded once,
+    and stored in memory for each subsequent call. Similarity measures are already cached,
+    making this the faster way to calculate similarity between multiple melodies.
 
     Args:
         melody_1: Name of the first melody. This should have already been passed to R
-        (see _pass_melody_to_r).
+        (see r_load_melody).
         melody_2: Name of the second melody. This should have already been passed to R.
-        method: Name of the similarity method. This should have already been loaded
-        (see load_similarity_measure).
+        method: Name of the similarity method.
 
     Returns:
-        The similarity between the two melodies
+        The similarity value for each of the melody comparisons
     """
     import rpy2.robjects as ro
 
-    return ro.r(f"{melody_1}$similarity")(
-        ro.r(f"{melody_2}"), ro.r(f"{method}_sim")
-    ).rx2("sim")[0]
+    # Load the similarity measure
+    load_similarity_measure(method)
+
+    return float(
+        ro.r(f"{melody_1}$similarity")(ro.r(f"{melody_2}"), ro.r(f"{method}_sim")).rx2(
+            "sim"
+        )[0]
+    )

@@ -3,8 +3,12 @@ Example usage of the melsim module.
 """
 
 from amads.core.basics import Score
-from amads.melody.similarity import melsim
-from amads.melody.similarity.melsim import check_packages_installed
+from amads.melody.similarity.melsim import (
+    check_packages_installed,
+    get_similarity,
+    r_get_similarity,
+    r_load_melody,
+)
 from amads.utils import check_python_package
 
 
@@ -12,6 +16,8 @@ def test_check_dependencies():
     check_python_package("rpy2")
     check_packages_installed()
 
+
+test_check_dependencies()
 
 # Create a C major scale melody as (pitch, duration) tuples
 # Using MIDI note numbers: C4=60, D4=62, E4=64, F4=65, G4=67, A4=69, B4=71, C5=72
@@ -37,12 +43,27 @@ fourth_scale = Score.from_melody(
 
 melodies = [c_major_scale, modified_scale, third_scale, fourth_scale]
 
-# Get similarity between the two melodies using the 'cosine' and 'Simpson' similarity measures
-# Remember, the names of the similarity measures are case-sensitive, and can be found in the melsim
-# documentation string
+# Example usage - Simple similarity comparison between two melodies
 
-cosine_similarity = melsim.get_similarity(melodies, "cosine")
-simpson_similarity = melsim.get_similarity(melodies, "Simpson")
+similarity = get_similarity(c_major_scale, modified_scale, "Jaccard")
+print(f"Jaccard similarity between c_major_scale and modified_scale: {similarity}")
+print("\n")
 
-print(f"Cosine similarity between melodies: {cosine_similarity}\n")
-print(f"Simpson similarity between melodies: {simpson_similarity}\n")
+# Example usage - Similarity comparison across four melodies, using r_get_similarity
+# Perform pairwise comparisons using 'cosine' and 'Simpson' similarity measures
+
+# Load melodies into R
+for i, melody in enumerate(melodies):
+    r_load_melody(melody, f"melody_{i + 1}")
+
+# Define measures to compare
+similarity_measures = ["cosine", "Simpson"]
+
+# Perform pairwise comparisons using the defined similarity measures
+for method in similarity_measures:
+    print(f"Pairwise {method} similarities:")
+    for i in range(len(melodies)):
+        for j in range(i + 1, len(melodies)):
+            similarity = r_get_similarity(f"melody_{i + 1}", f"melody_{j + 1}", method)
+            print(f"Similarity between melody_{i + 1} and melody_{j + 1}: {similarity}")
+    print("\n")
