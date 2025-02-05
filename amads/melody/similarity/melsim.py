@@ -18,52 +18,52 @@ Num:        Name:
 1           Jaccard
 2       Kulczynski2
 3            Russel
-4   simple matching
-5             Faith
-6          Tanimoto
-7              Dice
-8            Mozley
-9            Ochiai
-10          Simpson
-11           cosine
-12          angular
-13      correlation
-14        Tschuprow
-15           Cramer
-16            Gower
-17        Euclidean
-18        Manhattan
-19         supremum
-20         Canberra
-21            Chord
-22         Geodesic
-23             Bray
-24          Soergel
-25           Podani
-26        Whittaker
-27         eJaccard
-28            eDice
-29   Bhjattacharyya
-30       divergence
-31        Hellinger
-32    edit_sim_utf8
-33         edit_sim
-34      Levenshtein
-35          sim_NCD
-36            const
-37          sim_dtw
+4             Faith
+5          Tanimoto
+6              Dice
+7            Mozley
+8            Ochiai
+9            Simpson
+10           cosine
+11          angular
+12      correlation
+13        Tschuprow
+14           Cramer
+15            Gower
+16        Euclidean
+17        Manhattan
+18         supremum
+19         Canberra
+20            Chord
+21         Geodesic
+22             Bray
+23          Soergel
+24           Podani
+25        Whittaker
+26         eJaccard
+27            eDice
+28   Bhjattacharyya
+29       divergence
+30        Hellinger
+31    edit_sim_utf8
+32         edit_sim
+33      Levenshtein
+34          sim_NCD
+35            const
+36          sim_dtw
 
 The following similarity measures are not currently functional in melsim:
 1    count_distinct (set-based)
 2          tversky (set-based)
-3   braun_blanquet (set-based)
-4        minkowski (vector-based)
-5           ukkon (distribution-based)
-6      sum_common (distribution-based)
-7       distr_sim (distribution-based)
-8   stringdot_utf8 (sequence-based)
-9             pmi (special)
-10       sim_emd (special)
+3   simple matching
+4   braun_blanquet (set-based)
+5        minkowski (vector-based)
+6           ukkon (distribution-based)
+7      sum_common (distribution-based)
+8       distr_sim (distribution-based)
+9   stringdot_utf8 (sequence-based)
+10            pmi (special)
+11       sim_emd (special)
 
 Further to the similarity measures, melsim allows the user to specify which domain the
 similarity should be calculated for. This is referred to as a "transformation" in melsim,
