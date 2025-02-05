@@ -71,10 +71,9 @@ jobs:
           libblas-dev \
           liblapack-dev
 
-    - name: Install Python and R packages
+    - name: Install Python packages
       run: |
         pip install -e .[test,melsim]
-        python -c "from amads.melody.similarity.melsim import install_dependencies; install_dependencies()"
 
     - name: Run melsim tests with coverage
       run: |

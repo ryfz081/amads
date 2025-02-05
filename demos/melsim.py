@@ -14,7 +14,7 @@ from amads.utils import check_python_package_installed
 
 def test_check_dependencies():
     check_python_package_installed("rpy2")
-    check_r_packages_installed()
+    check_r_packages_installed(install_missing=True)
 
 
 test_check_dependencies()
