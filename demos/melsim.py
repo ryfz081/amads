@@ -45,7 +45,7 @@ melodies = [c_major_scale, modified_scale, third_scale, fourth_scale]
 
 # Example usage - Simple similarity comparison between two melodies
 
-similarity = get_similarity(c_major_scale, modified_scale, "Jaccard")
+similarity = get_similarity(c_major_scale, modified_scale, "Jaccard", "pitch")
 print(f"Jaccard similarity between c_major_scale and modified_scale: {similarity}")
 print("\n")
 
@@ -64,6 +64,24 @@ for method in similarity_measures:
     print(f"Pairwise {method} similarities:")
     for i in range(len(melodies)):
         for j in range(i + 1, len(melodies)):
-            similarity = r_get_similarity(f"melody_{i + 1}", f"melody_{j + 1}", method)
+            similarity = r_get_similarity(
+                f"melody_{i + 1}", f"melody_{j + 1}", method, "pitch"
+            )
             print(f"Similarity between melody_{i + 1} and melody_{j + 1}: {similarity}")
     print("\n")
+
+# Example usage for a series of other transformations
+intervallic_similarity = get_similarity(
+    c_major_scale, modified_scale, "Euclidean", "int"
+)
+print(
+    f"Euclidean similarity between intervals of c_major_scale and modified_scale: {intervallic_similarity}"
+)
+
+# In this example, we expect similarity to be 1, as the IOIs are identical
+ioi_class_similarity = get_similarity(
+    c_major_scale, modified_scale, "Canberra", "ioi_class"
+)
+print(
+    f"Canberra similarity between ioi classes of c_major_scale and modified_scale: {ioi_class_similarity}"
+)

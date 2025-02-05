@@ -3,11 +3,12 @@ This is a Python wrapper for the R package 'melsim' (https://github.com/sebsilas
 This wrapper seeks to allow the user to easily interface with the melsim package using
 the Score objects in AMADS.
 
-Melsim is a package for computing similarity between melodies, and was written by
-Sebastian Silas (https://sebsilas.com/). It is currently maintained by himself and
-Klaus Frieler.
-It is based on SIMILE, which was written by Daniel Müllensiefen and Klaus Frieler in 2003/2004.
-Melsim is used to compare two or more melodies pairwise across a range of similarity measures.
+Melsim is a package for computing similarity between melodies, and is being developed by
+Sebastian Silas (https://sebsilas.com/) and Klaus Frieler
+(https://www.aesthetics.mpg.de/en/the-institute/people/klaus-frieler.html).
+
+Melsim is based on SIMILE, which was written by Daniel Müllensiefen and Klaus Frieler in 2003/2004.
+This package is used to compare two or more melodies pairwise across a range of similarity measures.
 Not all similarity measures are implemented in melsim, but the ones that are can be used in AMADS.
 
 All of the following similarity measures are implemented and functional in melsim:
@@ -63,6 +64,28 @@ The following similarity measures are not currently functional in melsim:
 8   stringdot_utf8 (sequence-based)
 9             pmi (special)
 10       sim_emd (special)
+
+Further to the similarity measures, melsim allows the user to specify which domain the
+similarity should be calculated for. This is referred to as a "transformation" in melsim,
+and all of the following transformations are implemented and functional:
+
+Num:        Name:
+1           pitch
+2           int
+3           fuzzy_int
+4           parsons
+5           pc
+6           ioi_class
+7           duration_class
+8           int_X_ioi_class
+9           implicit_harmonies
+
+The following transformations are not currently functional in melsim:
+
+Num:        Name:
+1           ioi
+2           phrase_segmentation
+
 """
 
 from functools import cache, wraps
@@ -149,7 +172,9 @@ def import_packages():
 
 
 @requires_melsim
-def get_similarity(melody_1: Score, melody_2: Score, method: str) -> float:
+def get_similarity(
+    melody_1: Score, melody_2: Score, method: str, transformation: str
+) -> float:
     """Calculate similarity between two melodies using the specified method.
 
     Parameters
@@ -159,8 +184,9 @@ def get_similarity(melody_1: Score, melody_2: Score, method: str) -> float:
     melody_2 : Score
         Second Score object containing a monophonic melody
     method : str
-        Name of the similarity method to use
-
+        Name of the similarity method to use from the list in the module docstring.
+    transformation : str
+        Name of the transformation to use from the list in the module docstring.
     Returns
     -------
     float
@@ -189,8 +215,8 @@ def get_similarity(melody_1: Score, melody_2: Score, method: str) -> float:
 
     r_load_melody(melody_1, "melody_1")
     r_load_melody(melody_2, "melody_2")
-    load_similarity_measure(method)
-    return r_get_similarity("melody_1", "melody_2", method)
+    load_similarity_measure(method, transformation)
+    return r_get_similarity("melody_1", "melody_2", method, transformation)
 
 
 loaded_melodies = {}
@@ -231,15 +257,33 @@ def r_load_melody(melody: Score, name: str):
 
 
 @cache
-def load_similarity_measure(method: str):
+def load_similarity_measure(method: str, transformation: str = "pitch"):
     import rpy2.robjects as ro
+
+    valid_transformations = [
+        "pitch",
+        "int",
+        "fuzzy_int",
+        "parsons",
+        "pc",
+        "ioi_class",
+        "duration_class",
+        "int_X_ioi_class",
+        "implicit_harmonies",
+    ]
+
+    # "ioi" and "phrase_segmentation" are not currently functional in melsim
+    # but they will likely be added in the future
+
+    if transformation not in valid_transformations:
+        raise ValueError(f"Invalid transformation: {transformation}")
 
     ro.r.assign(
         f"{method}_sim",
         ro.r("sim_measure_factory$new")(
             name=method,
             full_name=method,
-            transformation="pitch",
+            transformation=transformation,
             parameters=ro.ListVector({}),
             sim_measure=method,
         ),
@@ -247,7 +291,9 @@ def load_similarity_measure(method: str):
 
 
 @requires_melsim
-def r_get_similarity(melody_1: str, melody_2: str, method: str) -> float:
+def r_get_similarity(
+    melody_1: str, melody_2: str, method: str, transformation: str
+) -> float:
     """
     Use the melsim R package to get the similarity between two or more melodies.
     This version of get_similarity is designed to be used alongside r_load_melody.
@@ -269,7 +315,7 @@ def r_get_similarity(melody_1: str, melody_2: str, method: str) -> float:
     import rpy2.robjects as ro
 
     # Load the similarity measure
-    load_similarity_measure(method)
+    load_similarity_measure(method, transformation)
 
     return float(
         ro.r(f"{melody_1}$similarity")(ro.r(f"{melody_2}"), ro.r(f"{method}_sim")).rx2(
