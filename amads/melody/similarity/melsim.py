@@ -204,11 +204,11 @@ def get_similarity(
     >>> melody_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
     >>> melody_2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
     >>> # Calculate similarity using Jaccard method
-    >>> similarity = get_similarity(melody_1, melody_2, 'Jaccard')
+    >>> similarity = get_similarity(melody_1, melody_2, 'Jaccard', 'pitch')
     >>> 0 < similarity < 1
     True
     >>> # Verify that similarity between the same melody is 1
-    >>> similarity = get_similarity(melody_1, melody_1, 'Jaccard')
+    >>> similarity = get_similarity(melody_1, melody_1, 'Jaccard', 'pitch')
     >>> similarity == 1
     True
     """
@@ -257,7 +257,7 @@ def r_load_melody(melody: Score, name: str):
 
 
 @cache
-def load_similarity_measure(method: str, transformation: str = "pitch"):
+def load_similarity_measure(method: str, transformation: str):
     import rpy2.robjects as ro
 
     valid_transformations = [
