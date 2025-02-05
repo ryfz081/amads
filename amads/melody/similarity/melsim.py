@@ -205,7 +205,7 @@ def get_similarity(
     >>> melody_2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
     >>> # Calculate similarity using Jaccard method
     >>> similarity = get_similarity(melody_1, melody_2, 'Jaccard', 'pitch')
-    >>> similarity is not None
+    >>> similarity == 0.6 # verified against melsim R package
     True
     >>> # Verify that similarity between the same melody is 1
     >>> similarity = get_similarity(melody_1, melody_1, 'Jaccard', 'pitch')
