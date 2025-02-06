@@ -317,8 +317,18 @@ def r_get_similarity(
     # Load the similarity measure
     load_similarity_measure(method, transformation)
 
-    return float(
-        ro.r(f"{melody_1}$similarity")(ro.r(f"{melody_2}"), ro.r(f"{method}_sim")).rx2(
-            "sim"
-        )[0]
+    print(f"melody_1$pitch: {ro.r('melody_1$pitch')}")
+    print(f"melody_2$pitch: {ro.r('melody_2$pitch')}")
+
+    similarity = ro.r(f"{melody_1}$similarity")(
+        ro.r(f"{melody_2}"), ro.r(f"{method}_sim")
     )
+    print(f"similarity: {similarity}")
+
+    return float(similarity.rx2("sim")[0])
+
+    # return float(
+    #     ro.r(f"{melody_1}$similarity")(ro.r(f"{melody_2}"), ro.r(f"{method}_sim")).rx2(
+    #         "sim"
+    #     )[0]
+    # )
