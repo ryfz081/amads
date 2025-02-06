@@ -201,14 +201,14 @@ def get_similarity(
     --------
     >>> from amads.core.basics import Score
     >>> # Create two simple melodies using from_melody
-    >>> melody_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=0.5)
-    >>> melody_2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=0.5)
-    >>> # Calculate similarity using Jaccard method
-    >>> similarity = get_similarity(melody_1, melody_2, 'Jaccard', 'pitch')
+    >>> melody_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
+    >>> melody_2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
+    >>> # Calculate similarity using Faith method
+    >>> similarity = get_similarity(melody_1, melody_2, 'Faith', 'pitch')
     >>> similarity # obtained from R package
     0.6
     >>> # Verify that similarity between the same melody is 1
-    >>> similarity = get_similarity(melody_1, melody_1, 'Jaccard', 'pitch')
+    >>> similarity = get_similarity(melody_1, melody_1, 'Faith', 'pitch')
     >>> similarity == 1
     True
     """
