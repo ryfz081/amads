@@ -20,6 +20,13 @@ def test_melsim_import(installed_melsim_dependencies):
     assert callable(get_similarity)
 
 
+def test_example_usage():
+    mel_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
+    mel_2 = Score.from_melody(pitches=[60, 62, 64, 67], durations=1.0)
+    similarity = get_similarity(mel_1, mel_2, "Jaccard", "pitch")
+    assert similarity == 0.6
+
+
 def test_melsim_measures_transformations():
 
     mel_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
