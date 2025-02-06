@@ -8,6 +8,21 @@ class Token:
     def __init__(self, value: int):
         self.value = value
 
+    def __str__(self):
+        return str(self.value)
+
+    def __repr__(self):
+        return f"Token({self.value})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Token):
+            return NotImplemented
+        return self.value == other.value
+
+    def __hash__(self):
+        return hash(self.value)
+
+
 class Tokenizer(ABC):
     @abstractmethod    
     def tokenize(self, x) -> List[Token]:
@@ -25,7 +40,7 @@ class MelodyIntervalTokenizer(Tokenizer):
         flat_score = x.flatten(collapse=True)
         tones = list(flat_score.find_all(Note))
         tokens = []
-        
+
         for prev_note, current_note in zip(tones[:-1], tones[1:]):
             interval = current_note.keynum - prev_note.keynum
             tokens.append(Token(interval))
