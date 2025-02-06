@@ -1,3 +1,6 @@
+from typing import Dict
+from amads.expectation.tokenizer import Token
+
 class ProbabilityDistribution:
     def __init__(self, distribution: Dict[Token, float]):
         self.distribution = distribution
