@@ -66,8 +66,9 @@ class MarkovModel(ExpectationModel):
     def predict_token(self, context: tuple, current_token: Token) -> ProbabilityDistribution:
         """Predict probability distribution for next token given context."""
         if context not in self.ngrams:
-            # If context never seen in training, return uniform distribution
-            return ProbabilityDistribution.uniform()
+            # Create uniform distribution over all unique tokens seen in training
+            unique_tokens = {token for ngram in self.ngrams.values() for token in ngram}
+            return ProbabilityDistribution({t: 1/len(unique_tokens) for t in unique_tokens | {current_token}})
             
         # Get all counts for this context
         total_count = sum(self.ngrams[context].values())
