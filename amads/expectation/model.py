@@ -27,11 +27,15 @@ class ExpectationModel:
         raise NotImplementedError
 
 class MarkovModel(ExpectationModel):
-    def __init__(self, order: int):
+    def __init__(self, order: int, smoothing_factor: float = 0.1):
         self.order = order
+        self.smoothing_factor = smoothing_factor
+        self.vocabulary = set()
+        self.ngrams = {}
 
     def train(self, corpus) -> None:
         """Train the model by counting N-gram frequencies in the corpus."""
+        self.vocabulary = set()
         self.ngrams = {}
         for sequence in corpus:
             # Convert sequence to tuple for easier handling
@@ -48,6 +52,7 @@ class MarkovModel(ExpectationModel):
                 
                 # Count the frequency of the target given this context
                 self.ngrams[context][target] = self.ngrams[context].get(target, 0) + 1
+                self.vocabulary.add(target)
 
     def predict_sequence(self, sequence: List[Token]) -> List[ProbabilityDistribution]:
         """Generate predictions for each token in the sequence given previous tokens."""
@@ -65,23 +70,23 @@ class MarkovModel(ExpectationModel):
 
     def predict_token(self, context: tuple, current_token: Token) -> ProbabilityDistribution:
         """Predict probability distribution for next token given context."""
-        if context not in self.ngrams:
-            # Create uniform distribution over all unique tokens seen in training
-            unique_tokens = {token for ngram in self.ngrams.values() for token in ngram}
-            return ProbabilityDistribution({t: 1/len(unique_tokens) for t in unique_tokens | {current_token}})
-            
-        # Get all counts for this context
-        total_count = sum(self.ngrams[context].values())
+        # Add current_token to vocabulary if it's new
+        self.vocabulary.add(current_token)
+        V = len(self.vocabulary)  # vocabulary size
         
-        # Calculate probability for all possible next tokens
-        probabilities = {}
-        for token, count in self.ngrams[context].items():
-            probabilities[token] = count / total_count
+        if context not in self.ngrams:
+            # For unseen contexts, use maximum smoothing (equivalent to uniform)
+            # Every token gets the same smoothed probability
+            return ProbabilityDistribution({t: 1/V for t in self.vocabulary})
             
-        # If the current_token wasn't seen in this context during training,
-        # its probability should be 0
-        if current_token not in probabilities:
-            probabilities[current_token] = 0.0
+        # Get counts and apply smoothing
+        probabilities = {}
+        total_count = sum(self.ngrams[context].values()) + (self.smoothing_factor * V)
+        
+        # Calculate smoothed probability for all possible tokens
+        for token in self.vocabulary:
+            count = self.ngrams[context].get(token, 0)
+            probabilities[token] = (count + self.smoothing_factor) / total_count
         
         return ProbabilityDistribution(probabilities)
 
