@@ -27,6 +27,19 @@ def test_example_usage():
     assert similarity == 0.6
 
 
+def test_transformation_usage():
+    mel_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
+    mel_2 = Score.from_melody(pitches=[62, 64, 66, 67], durations=1.0)
+    # Melody 2 is a transposition of Melody 1 by 2 semitones
+    similarity = get_similarity(mel_1, mel_2, "Jaccard", "pitch")
+    # As a result, the similarity should not be 1
+    assert similarity != 1
+
+    # However, the similarity between the intervals should be 1
+    similarity = get_similarity(mel_1, mel_2, "Jaccard", "int")
+    assert similarity == 1
+
+
 def test_melsim_measures_transformations():
 
     mel_1 = Score.from_melody(pitches=[60, 62, 64, 65], durations=1.0)
