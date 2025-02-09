@@ -63,7 +63,7 @@ class IOITokenizer(Tokenizer):
         tokens = []
 
         for prev_note, current_note in zip(notes[:-1], notes[1:]):
-            ioi = current_note.onset - prev_note.onset
+            ioi = current_note.start - prev_note.start
             tokens.append(Token(ioi))
 
         return tokens
