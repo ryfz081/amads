@@ -14,7 +14,6 @@ from amads.expectation.model import MarkovModel, IDyOMModel
 from amads.expectation.metrics import NegativeLogLikelihood, Entropy
 import pickle
 
-
 # Get the path to the package's music directory-- to be fixed when sample datasets are properly included in the package
 package_dir = os.path.dirname(os.path.abspath(__file__))
 data_path = os.path.join(package_dir, '..', 'amads', 'music', 'Marion_2024_Bach_Chorales.pkl')
