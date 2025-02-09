@@ -11,7 +11,7 @@ from amads.expectation.model import MarkovModel, IDyOMModel
 from amads.expectation.metrics import NegativeLogLikelihood, Entropy
 import pickle
 
-score_data = pickle.load(open('/Users/IsaacSebenius/Dropbox/CambridgePhD/ExpectationProject/Data/Marion_2024_Bach_Chorales.pkl', 'rb'))
+score_data = pickle.load(open('./amads/music/Marion_2024_Bach_Chorales.pkl', 'rb'))
 
 tokenizer = MelodyIntervalTokenizer()
 dataset = ScoreDataset(score_data, tokenizer)
@@ -23,7 +23,8 @@ test_sequence = dataset[-1].copy()
 idyom = IDyOMModel(max_order=3, smoothing_factor=0.01)
 markov = MarkovModel(order=3, smoothing_factor=0.01)
 
-
+idyom.train(training_sequences)
+markov.train(training_sequences)
 
 # Get predictions for test sequence
 idyom_predictions = idyom.predict_sequence(test_sequence)
