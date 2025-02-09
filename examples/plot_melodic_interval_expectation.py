@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+#This is hacky and should be fixed if/when package is properly installed
 import sys
 sys.path.append('./amads')
+
 from amads.algorithms import boundary
 from amads.io import partitura_midi_import, pianoroll
 from amads.music import example
@@ -11,17 +14,21 @@ from amads.expectation.model import MarkovModel, IDyOMModel
 from amads.expectation.metrics import NegativeLogLikelihood, Entropy
 import pickle
 
-score_data = pickle.load(open('./amads/music/Marion_2024_Bach_Chorales.pkl', 'rb'))
+
+# Get the path to the package's music directory-- to be fixed when sample datasets are properly included in the package
+package_dir = os.path.dirname(os.path.abspath(__file__))
+data_path = os.path.join(package_dir, '..', 'amads', 'music', 'Marion_2024_Bach_Chorales.pkl')
+score_data = pickle.load(open(data_path, 'rb'))
 
 tokenizer = MelodyIntervalTokenizer()
 dataset = ScoreDataset(score_data, tokenizer)
 
-training_sequences = dataset[0:-1].copy()
-test_sequence = dataset[-1].copy()
+training_sequences = dataset[0:-10].copy()
+test_sequence = dataset[-7].copy()
 
 # Create and train both models: A simple Markov model and a more complex IDyOM model
-idyom = IDyOMModel(max_order=3, smoothing_factor=0.01)
-markov = MarkovModel(order=3, smoothing_factor=0.01)
+idyom = IDyOMModel(max_order=5, smoothing_factor=0.01)
+markov = MarkovModel(order=5, smoothing_factor=0.01)
 
 idyom.train(training_sequences)
 markov.train(training_sequences)
