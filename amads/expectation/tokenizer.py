@@ -49,3 +49,21 @@ class MelodyIntervalTokenizer(Tokenizer):
 
 class AudioTokenizer(Tokenizer):
     pass
+
+class IOITokenizer(Tokenizer):
+    """
+    Tokenize a melody as a sequence of inter-onset intervals (time between note starts).
+    """
+    def tokenize(self, x) -> List[Token]:
+        assert isinstance(x, Score)
+        assert ismonophonic(x)
+
+        flat_score = x.flatten(collapse=True)
+        notes = list(flat_score.find_all(Note))
+        tokens = []
+
+        for prev_note, current_note in zip(notes[:-1], notes[1:]):
+            ioi = current_note.onset - prev_note.onset
+            tokens.append(Token(ioi))
+
+        return tokens
