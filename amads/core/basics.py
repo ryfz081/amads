@@ -33,7 +33,6 @@ Score (one per musical work or movement)
 
 
 import functools
-import weakref
 from math import floor
 from typing import List, Optional, Union
 
@@ -100,7 +99,7 @@ class Event:
     def __init__(self, duration, delta):
         self.delta = delta
         self.duration = duration
-        self._parent = None
+        self.parent = None
         self.cache = Cache()
 
     def copy(self):
@@ -120,7 +119,7 @@ class Event:
         """
         if hasattr(self, "cache"):
             self.cache.invalidate()
-        if hasattr(self, "_parent") and self.parent:
+        if hasattr(self, "parent") and self.parent:
             self.parent.flag_modified()
 
     def __setattr__(self, name, value):
@@ -133,16 +132,6 @@ class Event:
     @property
     def delta_end(self):
         return self.delta + self.duration
-
-    @property
-    def parent(self):
-        if self._parent is None:
-            return None
-        return self._parent()
-
-    @parent.setter
-    def parent(self, p):
-        self._parent = weakref.ref(p)
 
     @property
     def start(self):
