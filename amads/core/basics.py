@@ -349,8 +349,8 @@ class Note(Event):
 
     @property
     def ioi(self):
-        """Calculate the time interval between this note's start and the previous note's start,
-        excluding any other notes that are sounding at the same time.
+        """Calculate the inter-onset interal, i.e. the time interval between this note's start and the
+        previous note's start, excluding any other notes that are sounding at the same time.
 
         Returns
         -------
@@ -965,15 +965,9 @@ class Score(Concurrence):
         return list(stripped.find_all(Note))
 
     @cached_event_property
-    def note_starts(self):
-        """Get all unique note start times in the score.
-
-        Returns
-        -------
-        set
-            Set of note start times in quarters.
-        """
-        return {note.start for note in self.notes}
+    def note_starts(self) -> List:
+        """A sorted list of all note start times in the score."""
+        return sorted({note.start for note in self.notes})
 
     @cached_event_property
     def previous_note_starts(self):
@@ -982,7 +976,7 @@ class Score(Concurrence):
         If there is no previous note, the value is None.
         We use this for efficient calculation of inter-onset intervals.
         """
-        note_starts = sorted(self.note_starts)
+        note_starts = self.note_starts
         previous_note_starts = {}
         for i, start in enumerate(note_starts):
             if i == 0:
