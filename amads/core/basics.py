@@ -95,9 +95,17 @@ class Event:
         Note that flagging an object as modified will also flag its parent, and
         so on up the hierarchy.
         """
-        self.cache.invalidate()
-        if self.parent:
+        if hasattr(self, "cache"):
+            self.cache.invalidate()
+        if hasattr(self, "_parent") and self.parent:
             self.parent.flag_modified()
+
+    def __setattr__(self, name, value):
+        # Whenever an attribute is set, we need to flag the object as modified
+        # to invalidate any cached properties. This invalidation will
+        # be passed upward to the parent too.
+        super().__setattr__(name, value)
+        self.flag_modified()
 
     @property
     def delta_end(self):
@@ -905,7 +913,7 @@ class Score(Concurrence):
         self.time_map = time_map if time_map else TimeMap()
 
     @cached_event_property
-    def notes(self):
+    def notes(self) -> List[Note]:
         """Get all notes in the score in sequential order, stripping ties.
 
         Returns

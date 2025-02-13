@@ -239,3 +239,51 @@ def test_multiple_cached_properties():
     # Validate the new values
     assert a3 == "value_a"
     assert b3 == "value_b"
+
+
+def test_note_attribute_modification():
+    """Test that modifying a Note's attribute invalidates cached properties."""
+    computation_count = 0
+
+    class TestNote(Event):
+        def __init__(self, duration=1, delta=0, pitch=60):
+            super().__init__(duration, delta)
+            self.pitch = pitch
+
+        @cached_event_property
+        def expensive_property(self):
+            nonlocal computation_count
+            computation_count += 1
+            return f"computed_value_{self.pitch}"
+
+    # Create a note and access the property
+    note = TestNote(duration=1, delta=0, pitch=60)
+    value1 = note.expensive_property
+
+    # Assert initial computation
+    assert computation_count == 1, "Property should be computed once initially."
+    assert value1 == "computed_value_60"
+
+    # Access property again, should use cache
+    value2 = note.expensive_property
+    assert (
+        computation_count == 1
+    ), "Property should not be recomputed when accessed again."
+    assert value2 == "computed_value_60"
+
+    # Modify the note's pitch
+    note.pitch = 72
+
+    # Access property after modification, should recompute
+    value3 = note.expensive_property
+    assert (
+        computation_count == 2
+    ), "Property should be recomputed after pitch modification."
+    assert value3 == "computed_value_72"
+
+    # Access property again, should use new cached value
+    value4 = note.expensive_property
+    assert (
+        computation_count == 2
+    ), "Property should not be recomputed when accessed again after modification."
+    assert value4 == "computed_value_72"
