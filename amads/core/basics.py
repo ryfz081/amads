@@ -78,9 +78,12 @@ def cached_event_property(func):
 
     @property
     def wrapper(self):
-        if property_name not in self.cache.data:
-            self.cache.data[property_name] = func(self)
-        return self.cache.data[property_name]
+        try:
+            return self.cache.get(property_name)
+        except KeyError:
+            value = func(self)
+            self.cache.set(property_name, value)
+            return value
 
     return wrapper
 
@@ -175,8 +178,35 @@ class Event:
 
 
 class Cache:
+    """A cache for storing computed values.
+
+    The Cache class provides a simple key-value store with the ability to invalidate
+    all cached values at once. It is used internally by cached_event_property to store
+    computed property values.
+
+    Methods
+    -------
+    get(key)
+        Get a value from the cache. Raises KeyError if key not found.
+    set(key, value)
+        Store a value in the cache.
+    invalidate()
+        Clear all values from the cache.
+
+    Raises
+    ------
+    KeyError
+        When attempting to get a key that is not in the cache.
+    """
+
     def __init__(self):
         self.data = {}
+
+    def get(self, key):
+        return self.data[key]
+
+    def set(self, key, value):
+        self.data[key] = value
 
     def invalidate(self):
         self.data = {}
