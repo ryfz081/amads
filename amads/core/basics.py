@@ -43,6 +43,26 @@ from .time_map import TimeMap
 def cached_event_property(func):
     """
     Decorator to cache the value of a property in Event.cache.
+    This allows us to define properties that are computed on first access,
+    and recomputed only when the object is modified.
+
+    One example is the Score.is_monophonic property, which is computed
+    by iterating over all notes and checking if any two notes are overlapping.
+    We don't want to recompute this property from scratch every time it is accessed,
+    so we cache the result.
+    But we also want to invalidate the cache if any notes are added, removed, or modified.
+
+    Setting an attribute of an object will automatically trigger a flag_modified() call on that object,
+    which will invalidate the cache of all properties that depend on that object.
+    If the object has a parent, the parent will also be flagged as modified,
+    and so on up the hierarchy.
+    flag_modified is also called as part of various methods,
+    such as insert(), append(), and pack().
+
+    Normally users should treat Event objects as immutable, so should not have to worry
+    about cache invalidation. If you do need to modify an Event object, and you're doing
+    something more complicated than just setting attributes, you might want to
+    call the object's flag_modified() method just to be safe.
 
     Parameters
     ----------
@@ -78,7 +98,7 @@ class Event:
         self.delta = delta
         self.duration = duration
         self._parent = None
-        self.cache = Cache(self)
+        self.cache = Cache()
 
     def copy(self):
         raise Exception("Event is abstract, subclass should override copy()")
@@ -155,8 +175,7 @@ class Event:
 
 
 class Cache:
-    def __init__(self, parent):
-        self.parent = parent
+    def __init__(self):
         self.data = {}
 
     def invalidate(self):
