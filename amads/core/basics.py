@@ -137,6 +137,14 @@ class Event:
         self.duration = value - self.start
         assert self.duration >= 0
 
+    @property
+    def score(self):
+        if self.parent is None:
+            raise ValueError(f"{self} is not in a score")
+        if isinstance(self.parent, Score):
+            return self.parent
+        return self.parent.score
+
 
 class Cache:
     def __init__(self, parent):
