@@ -359,10 +359,21 @@ class Note(Event):
             start time of the previous note.
             If there is no previous note, returns None.
         """
-        previous_start = self.score.previous_note_starts[self.start]
+        previous_start = self.previous_start
         if previous_start is None:
             return None
         return self.start - previous_start
+
+    @property
+    def previous_start(self):
+        """
+        The start time of the previous note, excluding any other notes that are
+        sounding at the same time. If there is no previous note, returns None.
+        """
+        previous_start = self.score.previous_note_starts[self.start]
+        if previous_start is None:
+            return None
+        return previous_start
 
 
 class TimeSignature(Event):
