@@ -306,20 +306,16 @@ class Note(Event):
 
         Returns
         -------
-        float
+        float or None
             The time interval in quarters between this note's start time and the
             start time of the previous note.
-
-        Raises
-        ------
-        ValueError
-            If there is no previous note (i.e., this is the first note or part of the first chord).
+            If there is no previous note, returns None.
         """
         previous_starts = [
             start for start in self.score.note_starts if start < self.start
         ]
         if not previous_starts:
-            raise ValueError("No previous note found")
+            return None
         return self.start - max(previous_starts)
 
 
