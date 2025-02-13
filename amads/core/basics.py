@@ -301,7 +301,8 @@ class Note(Event):
     def lower_enharmonic(self):
         return self.pitch.lower_enharmonic()
 
-    def inter_onset_interval(self):
+    @property
+    def ioi(self):
         """Calculate the time interval between this note's start and the previous note's start.
 
         Returns
@@ -311,12 +312,10 @@ class Note(Event):
             start time of the previous note.
             If there is no previous note, returns None.
         """
-        previous_starts = [
-            start for start in self.score.note_starts if start < self.start
-        ]
-        if not previous_starts:
+        previous_start = self.score.previous_note_starts[self.start]
+        if previous_start is None:
             return None
-        return self.start - max(previous_starts)
+        return self.start - previous_start
 
 
 class TimeSignature(Event):
@@ -928,6 +927,22 @@ class Score(Concurrence):
             Set of note start times in quarters.
         """
         return {note.start for note in self.notes}
+
+    @cached_event_property
+    def previous_note_starts(self):
+        """
+        A dictionary keyed by note starts where the value is the start of the previous note.
+        If there is no previous note, the value is None.
+        We use this for efficient calculation of inter-onset intervals.
+        """
+        note_starts = sorted(self.note_starts)
+        previous_note_starts = {}
+        for i, start in enumerate(note_starts):
+            if i == 0:
+                previous_note_starts[start] = None
+            else:
+                previous_note_starts[start] = note_starts[i - 1]
+        return previous_note_starts
 
     @cached_event_property
     def is_monophonic(self):
