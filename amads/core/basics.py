@@ -40,6 +40,31 @@ from typing import List, Optional, Union
 from .time_map import TimeMap
 
 
+def cached_event_property(func):
+    """
+    Decorator to cache the value of a property in Event.cache.
+
+    Parameters
+    ----------
+    func : method
+        The method to be turned into a cached property.
+
+    Returns
+    -------
+    property
+        A property that caches its value upon first access.
+    """
+    property_name = func.__name__
+
+    @property
+    def wrapper(self):
+        if property_name not in self.cache.data:
+            self.cache.data[property_name] = func(self)
+        return self.cache.data[property_name]
+
+    return wrapper
+
+
 class Event:
     """Event is a superclass for Note, Rest, EventGroup, and just about
     anything that takes place in time.
@@ -53,12 +78,26 @@ class Event:
         self.delta = delta
         self.duration = duration
         self._parent = None
+        self.cache = Cache(self)
 
     def copy(self):
         raise Exception("Event is abstract, subclass should override copy()")
 
     def deep_copy(self):
         raise Exception("Event is abstract, subclass should override deep_copy()")
+
+    def flag_modified(self):
+        """
+        Flag the object as modified.
+
+        Flagging an object as modified will cause cached attributes to be recomputed
+        the next time they are accessed.
+        Note that flagging an object as modified will also flag its parent, and
+        so on up the hierarchy.
+        """
+        self.cache.invalidate()
+        if self.parent:
+            self.parent.flag_modified()
 
     @property
     def delta_end(self):
@@ -97,6 +136,15 @@ class Event:
     def end(self, value):
         self.duration = value - self.start
         assert self.duration >= 0
+
+
+class Cache:
+    def __init__(self, parent):
+        self.parent = parent
+        self.data = {}
+
+    def invalidate(self):
+        self.data = {}
 
 
 class Rest(Event):
@@ -548,6 +596,7 @@ class EventGroup(Event):
         else:  # simply append at the end of content:
             self.content.append(event)
         event.parent = self
+        self.flag_modified()
         return self
 
     def find_all(self, elemType):
@@ -645,6 +694,7 @@ class Sequence(EventGroup):
             if isinstance(elem, EventGroup):
                 elem.pack()
             delta += elem.duration
+        self.flag_modified()
 
 
 class Concurrence(EventGroup):
@@ -698,6 +748,7 @@ class Concurrence(EventGroup):
             if isinstance(elem, EventGroup):
                 elem.pack()
             self.duration = max(self.duration, elem.duration)
+        self.flag_modified()
 
     def append(self, element, delta=0, update_duration=True):
         """Append an element to the content with the given delta.
@@ -711,6 +762,7 @@ class Concurrence(EventGroup):
         self.insert(element)
         if update_duration:
             self.duration = max(self.duration, element.delta_end)
+        self.flag_modified()
 
 
 class Chord(Concurrence):
