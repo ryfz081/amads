@@ -375,6 +375,34 @@ class Note(Event):
             return None
         return previous_start
 
+    @property
+    def ioi_ratio(self):
+        """
+        The ratio of this note's inter-onset interval to the inter-onset interval
+        of the previous note. If there are not at least two previous notes, returns
+        None.
+        """
+        ioi = self.ioi
+        if ioi is None:
+            return None
+        previous_ioi = self.previous_ioi
+        if previous_ioi is None:
+            return None
+        return ioi / previous_ioi
+
+    @property
+    def previous_ioi(self):
+        """
+        The inter-onset interval of the previous note.
+        """
+        previous_start = self.previous_start
+        if previous_start is None:
+            return None
+        previous_previous_start = self.score.previous_note_starts[previous_start]
+        if previous_previous_start is None:
+            return None
+        return previous_start - previous_previous_start
+
 
 class TimeSignature(Event):
     """TimeSignature is a zero-duration Event with timesig info."""

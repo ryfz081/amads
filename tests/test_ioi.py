@@ -47,3 +47,27 @@ def test_ioi_with_chords():
 
     # Last note starts at 2.0, previous notes at 0.0, so IOI = 2.0
     assert notes[3].ioi == 2.0
+
+
+def test_ioi_ratio():
+    """Test the ioi_ratio property of Note class."""
+    # Create a melody with known IOIs
+    score = Score.from_melody(
+        pitches=[60, 62, 64, 65],  # C4, D4, E4, F4
+        deltas=[0.0, 1.0, 3.0, 4.0],  # Start times: 0, 1, 3, 4
+        durations=[0.5, 1.0, 0.5, 1.0],  # Durations don't affect IOIs
+    )
+
+    notes = score.notes
+
+    # First note has no previous IOI
+    assert notes[0].ioi_ratio is None
+
+    # Second note has no previous IOI to compare with
+    assert notes[1].ioi_ratio is None
+
+    # Third note: current IOI = 2.0, previous IOI = 1.0, ratio = 2.0
+    assert notes[2].ioi_ratio == 2.0
+
+    # Fourth note: current IOI = 1.0, previous IOI = 2.0, ratio = 0.5
+    assert notes[3].ioi_ratio == 0.5
