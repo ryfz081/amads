@@ -1,6 +1,6 @@
 import pytest
 
-from amads.core.basics import Score
+from amads.core.basics import Note, Part, Score
 
 
 def test_from_melody_overlapping_notes():
@@ -23,3 +23,18 @@ def test_from_melody_empty_pitches():
     assert score.duration == 0.0
     assert len(score.content) == 1  # should have one empty part
     assert len(score.content[0].content) == 0  # part should have no notes
+
+
+def test_is_monophonic():
+    score = Score.from_melody([60, 64, 67])
+    assert score.is_monophonic
+
+    # Test a score with overlapping notes
+    score = Score()
+    part = Part()
+    part.insert(Note(pitch=60, duration=2.0, delta=0))
+    part.insert(
+        Note(pitch=64, duration=1.0, delta=1.0)
+    )  # starts before first note ends
+    score.insert(part)
+    assert not score.is_monophonic

@@ -880,6 +880,12 @@ class Score(Concurrence):
         super().__init__(delta, duration, content)
         self.time_map = time_map if time_map else TimeMap()
 
+    @cached_event_property
+    def is_monophonic(self):
+        from ..pitch.ismonophonic import ismonophonic
+
+        return ismonophonic(self)
+
     @classmethod
     def from_melody(
         cls,
