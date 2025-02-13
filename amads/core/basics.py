@@ -349,7 +349,8 @@ class Note(Event):
 
     @property
     def ioi(self):
-        """Calculate the time interval between this note's start and the previous note's start.
+        """Calculate the time interval between this note's start and the previous note's start,
+        excluding any other notes that are sounding at the same time.
 
         Returns
         -------
