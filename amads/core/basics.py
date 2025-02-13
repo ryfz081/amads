@@ -301,6 +301,27 @@ class Note(Event):
     def lower_enharmonic(self):
         return self.pitch.lower_enharmonic()
 
+    def inter_onset_interval(self):
+        """Calculate the time interval between this note's start and the previous note's start.
+
+        Returns
+        -------
+        float
+            The time interval in quarters between this note's start time and the
+            start time of the previous note.
+
+        Raises
+        ------
+        ValueError
+            If there is no previous note (i.e., this is the first note or part of the first chord).
+        """
+        previous_starts = [
+            start for start in self.score.note_starts if start < self.start
+        ]
+        if not previous_starts:
+            raise ValueError("No previous note found")
+        return self.start - max(previous_starts)
+
 
 class TimeSignature(Event):
     """TimeSignature is a zero-duration Event with timesig info."""
@@ -889,6 +910,30 @@ class Score(Concurrence):
         self.time_map = time_map if time_map else TimeMap()
 
     @cached_event_property
+    def notes(self):
+        """Get all notes in the score in sequential order, stripping ties.
+
+        Returns
+        -------
+        list
+            List of Note objects in the score.
+        """
+        flattened = self.flatten(collapse=True)
+        stripped = flattened.strip_ties()
+        return list(stripped.find_all(Note))
+
+    @cached_event_property
+    def note_starts(self):
+        """Get all unique note start times in the score.
+
+        Returns
+        -------
+        set
+            Set of note start times in quarters.
+        """
+        return {note.start for note in self.notes}
+
+    @cached_event_property
     def is_monophonic(self):
         from ..pitch.ismonophonic import ismonophonic
 
@@ -1138,14 +1183,14 @@ class Score(Concurrence):
         pass
 
     def is_flattened_and_collapsed(self):
-        """Determine if score has been flattened into one part"""
+        """Determine if score has been flattened into one part."""
         return self.part_count() == 1 and (
             len(self.content[0].content) == 0  # no notes
-            or isinstance(self.content[0].content[0], Note)
-        )  # Part has notes
+            or isinstance(self.content[0].content[0], Note)  # Part has notes
+        )
 
     def part_count(self):
-        """How many parts are in this score?"""
+        """Return the number of parts in this score."""
         return len(self.content)
 
     def flatten(self, collapse=False):
