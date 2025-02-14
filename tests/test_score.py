@@ -211,3 +211,58 @@ def test_get_notes_sorted_by_start_and_pitch():
         (2, 62),  # D4
         (2, 65),  # F4
     ]
+
+
+def test_next_and_previous_note():
+    """Test next_note and previous_note properties."""
+    score = Score()
+    part = Part()
+    score.insert(part)
+
+    # Create notes in a specific order to test both sequential and simultaneous notes
+    # t=0: C4, E4, G4 (chord)
+    # t=2: D4
+    # t=3: F4
+
+    # Create a chord with three notes at t=0
+    chord = Chord(duration=1.0)
+    for pitch in [60, 64, 67]:  # C4, E4, G4
+        note = Note(duration=1.0, pitch=pitch)
+        chord.insert(note)
+    part.insert(chord)
+
+    # Add D4 at t=2
+    note_d = Note(duration=1.0, pitch=62, delta=2.0)
+    part.insert(note_d)
+
+    # Add F4 at t=3
+    note_f = Note(duration=1.0, pitch=65, delta=3.0)
+    part.insert(note_f)
+
+    notes = score.notes
+    assert len(notes) == 5
+
+    # First note (C4 at t=0)
+    assert notes[0].pitch.keynum == 60
+    assert notes[0].previous_note is None
+    assert notes[0].next_note.pitch.keynum == 64
+
+    # Second note (E4 at t=0)
+    assert notes[1].pitch.keynum == 64
+    assert notes[1].previous_note.pitch.keynum == 60
+    assert notes[1].next_note.pitch.keynum == 67
+
+    # Third note (G4 at t=0)
+    assert notes[2].pitch.keynum == 67
+    assert notes[2].previous_note.pitch.keynum == 64
+    assert notes[2].next_note.pitch.keynum == 62
+
+    # Fourth note (D4 at t=2)
+    assert notes[3].pitch.keynum == 62
+    assert notes[3].previous_note.pitch.keynum == 67
+    assert notes[3].next_note.pitch.keynum == 65
+
+    # Fifth note (F4 at t=3)
+    assert notes[4].pitch.keynum == 65
+    assert notes[4].previous_note.pitch.keynum == 62
+    assert notes[4].next_note is None

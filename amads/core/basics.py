@@ -348,6 +348,14 @@ class Note(Event):
         return self.pitch.lower_enharmonic()
 
     @property
+    def next_note(self):
+        return self.score.next_notes[self]
+
+    @property
+    def previous_note(self):
+        return self.score.previous_notes[self]
+
+    @property
     def ioi(self):
         """Calculate the inter-onset interal, i.e. the time interval between this note's start and the
         previous note's start, excluding any other notes that are sounding at the same time.
@@ -1001,11 +1009,38 @@ class Score(Concurrence):
         List[Note]
             List of Note objects in the score.
         """
-        flattened = self.flatten(collapse=True)
-        stripped = flattened.strip_ties()
-        notes = list(stripped.find_all(Note))
+        score = self.flatten(collapse=True).strip_ties()
+        notes = list(score.find_all(Note))
+        for note in notes:
+            note.parent = score
         notes.sort(key=lambda note: (note.start, note.pitch))
         return notes
+
+    @cached_event_property
+    def next_notes(self):
+        """A lookup table that for each note, returns the next note in the score."""
+        # We use find_all(Note) rather than self.notes because self.notes creates copies of the notes
+        notes = list(self.find_all(Note))
+        next_notes = {}
+        for i, note in enumerate(notes):
+            if i == len(notes) - 1:
+                next_notes[note] = None
+            else:
+                next_notes[note] = notes[i + 1]
+        return next_notes
+
+    @cached_event_property
+    def previous_notes(self):
+        """A lookup table that for each note, returns the previous note in the score."""
+        # We use find_all(Note) rather than self.notes because self.notes creates copies of the notes
+        notes = list(self.find_all(Note))
+        previous_notes = {}
+        for i, note in enumerate(notes):
+            if i == 0:
+                previous_notes[note] = None
+            else:
+                previous_notes[note] = notes[i - 1]
+        return previous_notes
 
     @cached_event_property
     def note_starts(self) -> List[float]:
