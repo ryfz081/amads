@@ -992,16 +992,20 @@ class Score(Concurrence):
 
     @cached_event_property
     def notes(self) -> List[Note]:
-        """Get all notes in the score in sequential order, stripping ties.
+        """Get all notes in the score in sequential order, stripping ties,
+        sorted by start time. When two notes have the same start time,
+        they are sorted by pitch (lowest to highest).
 
         Returns
         -------
-        list
+        List[Note]
             List of Note objects in the score.
         """
         flattened = self.flatten(collapse=True)
         stripped = flattened.strip_ties()
-        return list(stripped.find_all(Note))
+        notes = list(stripped.find_all(Note))
+        notes.sort(key=lambda note: (note.start, note.pitch))
+        return notes
 
     @cached_event_property
     def note_starts(self) -> List:

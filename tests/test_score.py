@@ -164,3 +164,50 @@ def test_get_notes_with_ties():
     assert notes[0].pitch.keynum == 60
     assert notes[0].duration == 4  # Duration should be combined
     assert notes[0].tie is None  # Tie should be stripped
+
+
+def test_get_notes_sorted_by_start_and_pitch():
+    """Test that notes are returned sorted by start time and then by pitch."""
+    score = Score()
+    part = Part()
+    score.insert(part)
+
+    # Create notes in scrambled order
+    # Three notes at t=0 with different pitches (67, 64, 60)
+    note1 = Note(duration=1, pitch=67, delta=0)  # G4
+    note2 = Note(duration=1, pitch=64, delta=0)  # E4
+    note3 = Note(duration=1, pitch=60, delta=0)  # C4
+
+    # Two notes at t=2 with different pitches (65, 62)
+    note4 = Note(duration=1, pitch=65, delta=2)  # F4
+    note5 = Note(duration=1, pitch=62, delta=2)  # D4
+
+    # Insert notes in an order different from both start time and pitch
+    part.insert(note1)  # t=0, G4
+    part.insert(note4)  # t=2, F4
+    part.insert(note2)  # t=0, E4
+    part.insert(note5)  # t=2, D4
+    part.insert(note3)  # t=0, C4
+
+    # Convert to list to ensure iterability
+    notes = list(score.notes)
+    assert len(notes) == 5
+
+    # Notes at t=0 should be sorted by pitch (C4, E4, G4)
+    first_three = notes[:3]
+    assert [n.pitch.keynum for n in first_three] == [60, 64, 67]
+    assert all(n.start == 0 for n in first_three)
+
+    # Notes at t=2 should be sorted by pitch (D4, F4)
+    last_two = notes[3:]
+    assert [n.pitch.keynum for n in last_two] == [62, 65]
+    assert all(n.start == 2 for n in last_two)
+
+    # Verify the complete sequence
+    assert [(n.start, n.pitch.keynum) for n in notes] == [
+        (0, 60),  # C4
+        (0, 64),  # E4
+        (0, 67),  # G4
+        (2, 62),  # D4
+        (2, 65),  # F4
+    ]
