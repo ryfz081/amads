@@ -322,3 +322,10 @@ def test_score_is_monophonic_cache_invalidation():
 
     # Should still be non-monophonic
     assert score.is_monophonic is False
+
+    # Space out the note so that they don't overlap any more
+    note2.delta = 10
+    note3.delta = 20
+
+    # Now the score should be monophonic again
+    assert score.is_monophonic
