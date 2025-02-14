@@ -1,6 +1,6 @@
 # noqa: F841
 
-from amads.core.basics import Event, cached_event_property
+from amads.core.basics import Event, Note, Part, Score, cached_event_property
 
 
 def test_cached_event_property():
@@ -287,3 +287,38 @@ def test_note_attribute_modification():
         computation_count == 2
     ), "Property should not be recomputed when accessed again after modification."
     assert value4 == "computed_value_72"
+
+
+def test_score_is_monophonic_cache_invalidation():
+    """Test that adding simultaneous notes to a Score invalidates the is_monophonic cached property."""
+    # Create an empty score
+    score = Score()
+    part = Part()
+    score.insert(part)
+
+    # First access should compute the property
+    assert score.is_monophonic is True
+
+    # Second access should use cache
+    assert score.is_monophonic is True
+
+    # Add first note
+    note1 = Note(duration=1, pitch=60, delta=0)
+    part.insert(note1)
+
+    # Access after modification should recompute
+    assert score.is_monophonic is True
+
+    # Add second note at same time (delta=0), which should make it non-monophonic
+    note2 = Note(duration=1, pitch=72, delta=0)
+    part.insert(note2)
+
+    # Access after second modification should recompute and be non-monophonic
+    assert score.is_monophonic is False
+
+    # Add a third note at a different time, should still be non-monophonic
+    note3 = Note(duration=1, pitch=64, delta=1)
+    part.insert(note3)
+
+    # Should still be non-monophonic
+    assert score.is_monophonic is False
