@@ -1008,7 +1008,7 @@ class Score(Concurrence):
         return notes
 
     @cached_event_property
-    def note_starts(self) -> List:
+    def note_starts(self) -> List[float]:
         """A sorted list of all note start times in the score."""
         return sorted({note.start for note in self.notes})
 
