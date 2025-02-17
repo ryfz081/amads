@@ -26,7 +26,7 @@ def test_sliding_window(twochan_score: Score, twochan_notes: Iterable[Note]):
 
     first_slice = windows[0]
     assert first_slice.onset == approx(-4.0)
-    assert first_slice.end == approx(0.0)
+    assert first_slice.offset == approx(0.0)
     assert len(first_slice.content) == 0
 
     last_slice = windows[-1]

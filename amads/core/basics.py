@@ -83,7 +83,7 @@ class Event:
         return p.onset + self.delta
 
     @property
-    def end(self):
+    def offset(self):
         return self.onset + self.duration
 
     @onset.setter
@@ -93,8 +93,8 @@ class Event:
         else:
             self.delta = value - self.parent.onset
 
-    @end.setter
-    def end(self, value):
+    @offset.setter
+    def offset(self, value):
         self.duration = value - self.onset
         assert self.duration >= 0
 
@@ -1362,7 +1362,7 @@ class Staff(Sequence):
                 event = measure.content[n_index]
                 if isinstance(event, Note) and event.keynum == note.keynum:
                     if event.tie == "stop":
-                        return event.end - start
+                        return event.offset - start
                     elif event.tie != "continue":
                         raise Exception("inconsistent tie attributes or notes")
                 elif isinstance(event, Chord):

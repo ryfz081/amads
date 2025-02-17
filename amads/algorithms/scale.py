@@ -39,5 +39,5 @@ def scale(score, factor=2, dim="all"):
                 elem.duration *= factor
             elif dim == "start":
                 elem.onset *= 2
-        score.duration = max(score.duration, elem.end)
+        score.duration = max(score.duration, elem.offset)
     return score

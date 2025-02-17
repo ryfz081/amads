@@ -57,7 +57,7 @@ def skyline(score: Score, threshold: float = 0.1):
         note = notes[i]
         # ignore notes that are below another existing note in filtered_notes
         if any(
-            note.pitch.keynum < prev.pitch.keynum and note.onset < prev.end
+            note.pitch.keynum < prev.pitch.keynum and note.onset < prev.offset
             for prev in filtered_notes
         ):
             continue
@@ -70,7 +70,7 @@ def skyline(score: Score, threshold: float = 0.1):
         for j in reversed(range(len(filtered_notes))):
             if (
                 filtered_notes[j].pitch.keynum < note.pitch.keynum
-                and filtered_notes[j].end > note.onset
+                and filtered_notes[j].offset > note.onset
             ):
                 # remove low notes quickly followed by a higher note
                 if filtered_notes[j].onset > note.onset - threshold:
@@ -78,7 +78,7 @@ def skyline(score: Score, threshold: float = 0.1):
                 # keep low notes not so quickly followed by a higher note
                 # shorten the duration of the low note
                 else:
-                    note_end = min(note.onset, filtered_notes[j].end)
+                    note_end = min(note.onset, filtered_notes[j].offset)
                     filtered_notes[j].duration = note_end - filtered_notes[j].onset
 
     # create a new score and part to store the filtered notes

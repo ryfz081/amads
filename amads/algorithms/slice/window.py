@@ -70,7 +70,7 @@ class Window(Slice):
         for i in range(skip, len(candidate_notes)):
             note = candidate_notes[i]
 
-            if note.end < start:
+            if note.offset < start:
                 # The note finished before the window started.
                 # It'll definitely finish before future windows start,
                 # because they'll be even later, so we can skip it then too.
@@ -90,7 +90,7 @@ class Window(Slice):
             # preserve any other attributes that might be useful in downstream tasks.
             note = note.copy()
             note.onset = max(note.onset, start)
-            note.end = min(note.end, end)
+            note.offset = min(note.offset, end)
 
             notes.append(note)
 

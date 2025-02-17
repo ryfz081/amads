@@ -71,7 +71,7 @@ def boundary(score: Score):
     # profiles
     pp = [abs(pair[1].keynum - pair[0].keynum) for pair in zip(notes, notes[1:])]
     po = [pair[1].onset - pair[0].onset for pair in zip(notes, notes[1:])]
-    pr = [max(0, pair[1].onset - pair[0].end) for pair in zip(notes, notes[1:])]
+    pr = [max(0, pair[1].onset - pair[0].offset) for pair in zip(notes, notes[1:])]
 
     def list_degrees(profile):
         ret_list = [
