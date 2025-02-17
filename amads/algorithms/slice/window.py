@@ -77,7 +77,7 @@ class Window(Slice):
                 skip = i
                 continue
 
-            if note.start > end:
+            if note.onset > end:
                 # The note starts after the window finishes.
                 # All the remaining notes in candidate_notes will have even later starts,
                 # so we don't need to check them for this window.
@@ -89,7 +89,7 @@ class Window(Slice):
             # We use copy instead of creating a new Note because we want to
             # preserve any other attributes that might be useful in downstream tasks.
             note = note.copy()
-            note.start = max(note.start, start)
+            note.onset = max(note.onset, start)
             note.end = min(note.end, end)
 
             notes.append(note)
@@ -161,7 +161,7 @@ def sliding_window(
         notes = passage
 
     notes = list(notes)
-    notes.sort(key=lambda n: (n.start, n.pitch))
+    notes.sort(key=lambda n: (n.onset, n.pitch))
 
     if times is None:
         window_times = float_range(start, end, step)

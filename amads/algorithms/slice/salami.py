@@ -76,7 +76,7 @@ class Timepoint:
         note_offs = defaultdict(list)
 
         for note in notes:
-            note_on = note.start
+            note_on = note.onset
             note_off = note.end
 
             if time_n_digits is not None:
