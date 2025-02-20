@@ -25,6 +25,7 @@ from ..core.basics import EventGroup
 
 
 def scale(score, factor=2, dim="all"):
+    assert dim in ["all", "onset", "duration"]
     if dim == "all":
         scale(score, factor, "duration")
         scale(score, factor, "onset")
@@ -33,11 +34,13 @@ def scale(score, factor=2, dim="all"):
         if isinstance(elem, EventGroup):
             scale(elem, factor, dim)
             if dim == "onset":
-                elem.onset *= 2
+                elem.onset *= factor
         else:
             if dim == "duration":
                 elem.duration *= factor
-            elif dim == "start":
-                elem.onset *= 2
+            elif dim == "onset":
+                elem.onset *= factor
+            else:
+                raise ValueError(f"Invalid dimension: {dim}")
         score.duration = max(score.duration, elem.offset)
     return score
