@@ -33,11 +33,11 @@ def scale(score, factor=2, dim="all"):
         if isinstance(elem, EventGroup):
             scale(elem, factor, dim)
             if dim == "start":
-                elem.start *= 2
+                elem.onset *= 2
         else:
             if dim == "duration":
                 elem.duration *= factor
             elif dim == "start":
-                elem.start *= 2
-        score.duration = max(score.duration, elem.end)
+                elem.onset *= 2
+        score.duration = max(score.duration, elem.offset)
     return score

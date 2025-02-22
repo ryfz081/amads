@@ -6,9 +6,17 @@ We welcome contributions to the project! Whether you want to fix bugs, improve d
 GitHub contribution workflow
 ---------------------------
 
-0. Install pre-commit hooks::
+0. Use pre-commit
+~~~~~~~~~~~~~~~~~
+1. Install pre-commit hooks::
 
    pip install pre-commit && pre-commit install
+   
+2. Run pre-commit::
+
+   pre-commit run --all-files
+
+(You only need to do this once after you have installed pre-commit.)
 
 
 1. Submit a pull request
@@ -46,6 +54,13 @@ For external contributors
     git push origin feature-name
 
 6. Open a pull request from your fork to our main branch
+
+7. Before you push, there might be new changes in the repo to
+   integrate. Here's how
+   
+   TODO
+
+
 
 
 2. Continuous Integration
