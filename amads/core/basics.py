@@ -198,7 +198,8 @@ class Cache:
         self.data[key] = value
 
     def invalidate(self):
-        self.data = {}
+        if self.data:
+            self.data = {}
 
 
 class Rest(Event):
