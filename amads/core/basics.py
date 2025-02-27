@@ -30,9 +30,9 @@ Score (one per musical work or movement)
 import copy
 import functools
 from math import floor
-from typing import Generator, List, Optional, Type, Union
+from typing import Generator, Optional, Type, Union
 
-from .time_map import TimeMap
+from amads.core.time_map import TimeMap
 
 
 class Event:
@@ -72,9 +72,12 @@ class Event:
         delta : float
             The onset (start) time expressed relative to the parent onset time.
         """
-        self.parent = parent
+        self.parent = None
         self.duration = duration
         self.delta = delta
+        if parent:
+            assert isinstance(parent, EventGroup)
+            parent.insert(self)
 
 
     def copy(self) -> "Event":
@@ -105,7 +108,7 @@ class Event:
             A shallow copy of the Event instance with the new parent.
         """
         c = self.copy()
-        c.parent = parent
+        c.parent = None
         if parent:
             # adjust delta to preserve onset time of this event:
             c.delta = self.onset - parent.onset
@@ -135,7 +138,7 @@ class Event:
         self.parent = original_parent  # restore link to parent
         if parent:
             # adjust delta to preserve onset time of this event:
-            self.delta += original_parent.onset - parent.onset
+            c.delta += original_parent.onset - parent.onset
             parent.insert(c)
         return c
 
@@ -615,7 +618,7 @@ class KeySignature(Event):
 
     def __init__(self, parent: Optional["EventGroup"], keysig: int = 0,
                  delta: float = 0):
-        super().__init__(0, delta)
+        super().__init__(parent, 0, delta)
         self.keysig = keysig
 
 
@@ -959,8 +962,6 @@ class EventGroup(Event):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
-            Elements contained within this collection. (Defaults to [])
 
     Attributes
     ----------
@@ -970,17 +971,16 @@ class EventGroup(Event):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
     """
 
     def __init__(self,
                  parent: Optional["EventGroup"],
                  delta: float,
-                 duration: float,
-                 content: List[Event]):
+                 duration: float):
         super().__init__(parent, duration, delta)
-        self.content = content
+        self.content = []
 
 
     def convert_to_seconds(self, parent_onset_beat: float, 
@@ -1059,7 +1059,8 @@ class EventGroup(Event):
         self.content = None
         c = self.copy()
         self.content = original_content
-        c.parent = parent
+        c.content = []  # change None to (valid) empty content
+        c.parent = None  # copy is not a member of self
         if parent:
             parent.insert(c)
         return c
@@ -1217,17 +1218,32 @@ class EventGroup(Event):
                     note_copy.delta += item.delta
                     group.insert(note_copy)
             if isinstance(item, EventGroup):
-                item.expand_chords(group)  # recursion for deep copy
-            item.deepcopy_into(group)  # deep copy non-EventGroup
+                item.expand_chords(group)  # recursion for deep copy/expand
+            else:
+                item.deepcopy_into(group)  # deep copy non-EventGroup
         return group
+    
+
+    def inherit_duration(self) -> "EventGroup":
+        """Set the duration of this EventGroup to the maximum duration
+        of its children. If the EventGroup is empty, the duration
+        is set to 0. This method modifies the EventGroup instance.
+
+        Returns
+        -------
+        EventGroup
+            The EventGroup instance (self) with updated duration.
+        """
+        for elem in self.content:
+            self.duration = max(self.duration, elem.delta_offset)
+        return self
 
 
     def insert(self, event: Event) -> "EventGroup":
         """Insert an event without any changes to event.delta or
         self.duration. If the event is out of order, insert it just before
-        the first element with a greater delta. This method is similar
-        to append(), but it has different defaults for delta and
-        update_duration. The method modifies this object (self).
+        the first element with a greater delta. The method modifies this
+        object (self).
 
         Parameters
         ----------
@@ -1239,6 +1255,7 @@ class EventGroup(Event):
         EventGroup
             The EventGroup instance (self) with the event inserted.
         """
+        assert not event.parent
         if self.last and event.delta < self.last.delta:
             # search in reverse from end
             i = len(self.content) - 2
@@ -1251,6 +1268,45 @@ class EventGroup(Event):
             self.content.append(event)
         event.parent = self
         return self
+    
+
+    def list_all(self, elem_type: Type[Event]) -> list[Event]:
+        """Find all instances of a specific type within the EventGroup.
+        Assumes that objects of type `elem_type` are not nested within
+        other objects of the same type.
+
+        Parameters
+        ----------
+        elem_type : Type[Event]
+            The type of event to search for.
+
+        Returns
+        -------
+        list[Event]
+            A list of all instances of the specified type found
+            within the EventGroup.
+        """
+        return list(self.find_all(elem_type))
+
+
+    def remove(self, element: Event) -> "EventGroup":
+        """Remove an element from the content list. The method modifies
+        this object (self).
+
+        Parameters
+        ----------
+        element : Event
+            The event to be removed.
+
+        Returns
+        -------
+        EventGroup
+            The EventGroup instance (self) with the element removed.
+            The returned value is not a copy.
+        """
+        self.content.remove(element)
+        return self
+
 
 
 class Sequence(EventGroup):
@@ -1265,8 +1321,6 @@ class Sequence(EventGroup):
             parent's onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to None)
-        content : List[Event], optional
-            Elements contained within this collection. (Defaults to [])
 
     Attributes
     ----------
@@ -1276,27 +1330,18 @@ class Sequence(EventGroup):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
     """
 
     def __init__(self,
                  parent: EventGroup,
-                 delta: float,
-                 duration: float = None,
-                 content: List[Event] = None):
+                 delta: float = 0,
+                 duration: float = 0):
         """Sequence represents a temporal sequence of music events.
-        duration(ation) defaults to the duration of provided content or 0
-        if content is empty or None.
+        duration(ation) defaults to 0.
         """
-        if content is None:
-            content = []
-        if duration is None:
-            if len(content) == 0:
-                duration = 0
-            else:
-                duration = content[-1].delta_offset
-        super().__init__(parent, delta, duration, content)
+        super().__init__(parent, delta, duration)
 
 
     def show(self, indent: int = 0, label: str = "Sequence") -> "Sequence":
@@ -1338,20 +1383,31 @@ class Sequence(EventGroup):
         else:
             return self.last.last_delta_offset
 
-    def append(self, element, delta=None, update_duration=True):
-        """Append an element. If delta is specified, the element is
-        modified to start at this delta, and the duration of self
-        is unchanged. If delta is not specified or None, the element
-        delta is changed to the duration(ation) of self, which is then
-        incremented by the duration of element.
-        """
-        if delta is None:
-            element.delta = self.duration
-            if update_duration:
-                self.duration += element.duration
-        else:
-            element.delta = delta
-        self.insert(element)  # places element in order and sets element parent
+
+    # def append(self, element, delta=None, update_duration=True):
+    #     """Append an element. If delta is specified, the element is
+    #     modified to start at this delta, and the duration of self
+    #     is unchanged. If delta is not specified or None, the element
+    #     delta is changed to the duration(ation) of self, which is then
+    #     incremented by the duration of element.
+
+    #     Parameters
+    #     ----------
+    #     element : Event
+    #         The event to be appended.
+    #     delta : float, optional
+    #         The delta time to set for the element. (Defaults to element.delta)
+    #     update_duration : bool, optional
+    #         Whether to update the duration of self. (Defaults to True)
+    #     """
+    #     if delta is None:
+    #         element.delta = self.duration
+    #         if update_duration:
+    #             self.duration += element.duration
+    #     else:
+    #         element.delta = delta
+    #     self.insert(element)  # places element in order and sets element parent
+
 
     def pack(self):
         """Adjust the content to be sequential, with zero delta for the
@@ -1385,8 +1441,6 @@ class Concurrence(EventGroup):
             onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to None)
-        content : List[Event], optional
-            Elements contained within this collection. (Defaults to [])
 
     Attributes
     ---------
@@ -1396,25 +1450,18 @@ class Concurrence(EventGroup):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
     """
 
     def __init__(self,
                  parent: Optional[EventGroup],
                  delta: float = 0,
-                 duration: float = None,
-                 content: List[Event] = None):
-        """duration(ation) defaults to the maximum delta_offset of
-        provided content or 0 if content is empty.
+                 duration: float = None):
+        """duration defaults 0
         """
-        if content is None:
-            content = []
-        if duration is None:
-            duration = 0
-            for elem in content:
-                duration = max(duration, elem.delta_offset)
-        super().__init__(parent, delta, duration, content)
+        super().__init__(parent, delta, duration)
+
 
     def show(self, indent=0, label="Concurrence") -> "Concurrence":
         """Display the Concurrence information.
@@ -1446,27 +1493,27 @@ class Concurrence(EventGroup):
                 elem.pack()
             self.duration = max(self.duration, elem.duration)
 
-    def append(self, element: Event, delta: float = 0, update_duration: bool = True):
-        """Append an element to the content with the given delta.
-        (Specify delta=element.delta to retain the element's delta.)  By
-        default, the duration(ation) of self is increased to the
-        delta_offset of element if the delta_offset is greater than the
-        current duration(ation). To retain the duration(ation) of self,
-        specify update_duration=False.
+    # def append(self, element: Event, delta: float = 0, update_duration: bool = True):
+    #     """Append an element to the content with the given delta.
+    #     (Specify delta=element.delta to retain the element's delta.)  By
+    #     default, the duration(ation) of self is increased to the
+    #     delta_offset of element if the delta_offset is greater than the
+    #     current duration(ation). To retain the duration(ation) of self,
+    #     specify update_duration=False.
 
-        Parameters
-        ----------
-        element : Event
-            The event to be appended.
-        delta : float, optional
-            The delta time to set for the element. (Defaults to 0)
-        update_duration : bool, optional
-            Whether to update the duration of self. (Defaults to True)
-        """
-        element.delta = delta
-        self.insert(element)
-        if update_duration:
-            self.duration = max(self.duration, element.delta_offset)
+    #     Parameters
+    #     ----------
+    #     element : Event
+    #         The event to be appended.
+    #     delta : float, optional
+    #         The delta time to set for the element. (Defaults to 0)
+    #     update_duration : bool, optional
+    #         Whether to update the duration of self. (Defaults to True)
+    #     """
+    #     element.delta = delta
+    #     self.insert(element)
+    #     if update_duration:
+    #         self.duration = max(self.duration, element.delta_offset)
 
 
 class Chord(Concurrence):
@@ -1492,7 +1539,7 @@ class Chord(Concurrence):
             onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to None)
-        content : List[Event], optional
+        content : list[Event], optional
             Elements contained within this collection. (Defaults to [])
 
     Attributes
@@ -1503,7 +1550,7 @@ class Chord(Concurrence):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
     """
 
@@ -1549,7 +1596,7 @@ class Measure(Sequence):
             The onset (start) time relative to the parent's onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to 4)
-        content : List[Event], optional
+        content : list[Event], optional
             Elements contained within this collection. (Defaults to [])
 
     Attributes
@@ -1562,7 +1609,7 @@ class Measure(Sequence):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
     """
 
@@ -1570,10 +1617,10 @@ class Measure(Sequence):
                  parent: Optional[EventGroup],
                  number: Optional[str] = None,
                  delta: float = 0,
-                 duration: float = 4,
-                 content: List[Event] = None):
-        super().__init__(delta, parent, duration, content)
+                 duration: float = 4):
+        super().__init__(parent, delta, duration)
         self.number = number
+
 
     def show(self, indent: int = 0) -> "Measure":
         """Display the Measure information.
@@ -1590,6 +1637,7 @@ class Measure(Sequence):
         """
         nstr = " " + str(self.number) if self.number else ""
         return super().show(indent, "Measure" + nstr)
+
 
     def is_measured(self) -> bool:
         """Test if Measure is well-formed: Conforms to strict hierarchy of:
@@ -1637,7 +1685,7 @@ class Score(Concurrence):
             parent's onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to 0)
-        content : List[Event], optional
+        content : list[Event], optional
             Elements contained within this collection. (Defaults to [])
         time_map : TimeMap, optional
             A map from quarters to seconds (or seconds to quarters). (Defaults to None)
@@ -1648,7 +1696,7 @@ class Score(Concurrence):
             The onset (start) time expressed relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
         time_map : TimeMap
             A map from quarters to seconds (or seconds to quarters).
@@ -1660,10 +1708,10 @@ class Score(Concurrence):
     def __init__(self,
                  delta: float = 0,
                  duration: float = 0,
-                 content: Optional[List[Event]] = None,
                  time_map: Optional["TimeMap"] = None):
-        super().__init__(None, delta, duration, content)  # score parent is None
+        super().__init__(None, delta, duration)  # score parent is None
         self.time_map = time_map if time_map else TimeMap()
+
 
     def emptycopy(self) -> "Score":
         """Construct a shallow copy of a score with emptied content
@@ -1675,6 +1723,7 @@ class Score(Concurrence):
             A shallow copy of the Score instance with emptied content.
         """
         return self.emptycopy_into(None)
+
 
     def deepcopy(self) -> "Score":
         """Return a deep copy of the Score instance. Note that Part, Staff,
@@ -1692,10 +1741,10 @@ class Score(Concurrence):
 
     @classmethod
     def from_melody(cls,
-                    pitches: List[Union[int, Pitch]],
-                    durations: Union[float, List[float]] = 1.0,
-                    iois: Optional[Union[float, List[float]]] = None,
-                    deltas: Optional[List[float]] = None) -> "Score":
+                    pitches: list[Union[int, Pitch]],
+                    durations: Union[float, list[float]] = 1.0,
+                    iois: Optional[Union[float, list[float]]] = None,
+                    deltas: Optional[list[float]] = None) -> "Score":
         """Create a Score from a melody specified as a list of pitches
         and optional timing information.
 
@@ -1807,214 +1856,6 @@ class Score(Concurrence):
         return cls._from_melody(pitches, deltas, durations)
 
 
-    @classmethod
-    def _from_melody(cls,
-                     pitches: List[Union[int, Pitch]],
-                     deltas: List[float],
-                     durations: List[float]) -> "Score":
-        """Helper function to create a Score from preprocessed lists of pitches,
-        deltas, and durations.
-
-        All inputs must be lists of the same length, with numeric values already
-        converted to float.
-        """
-        if not (len(pitches) == len(deltas) == len(durations)):
-            raise ValueError("All inputs must be lists of the same length")
-        if not all(isinstance(x, float) for x in deltas):
-            raise ValueError("All deltas must be floats")
-        if not all(isinstance(x, float) for x in durations):
-            raise ValueError("All durations must be floats")
-
-        # Check for overlapping notes
-        for i in range(len(deltas) - 1):
-            current_end = deltas[i] + durations[i]
-            next_onset = deltas[i + 1]
-            if current_end > next_onset:
-                raise ValueError(
-                    f"Notes overlap: note {i} ends at {current_end:.2f} but note {i + 1} starts at {next_onset:.2f}"
-                )
-
-        score = cls()
-        part = Part()
-        score.insert(part)
-
-        # Create notes and add them to the part
-        for pitch, delta, duration in zip(pitches, deltas, durations):
-            if not isinstance(pitch, Pitch):
-                pitch = Pitch(pitch)
-            note = Note(duration=duration, pitch=pitch, delta=delta)
-            part.insert(note)
-
-        # Set the score duration to the end of the last note
-        if len(deltas) > 0:
-            score.duration = float(
-                max(delta + duration for delta, duration in zip(deltas, durations))
-            )
-        else:
-            score.duration = 0.0
-
-        return score
-
-
-    def show(self, indent: int = 0) -> "Score":
-        """Display the Score information.
-
-        Parameters
-        ----------
-        indent : int, optional
-            The indentation level for display. (Defaults to 0)
-
-        Returns
-        -------
-        Score
-            The Score instance itself.
-        """
-
-        print(" " * indent, f"Score at {self.onset:0.3f} delta ",
-              f"{self.delta:0.3f} duration {self.duration:0.3f}", sep="")
-        self.time_map.show(indent + 4)
-        for elem in self.content:
-            elem.show(indent + 4)
-        return self
-
-
-    def is_measured(self) -> bool:
-        """Test if Score is measured. Conforms to strict hierarchy of:
-        Score-Part-Staff-Measure-(Note or Rest or Chord) and Chord-Note.
-
-        Returns
-        -------
-        bool
-            True if the Score is measured, False otherwise.
-        """
-        for part in self.content:
-            # only Parts are expected, but things outside of the hierarchy
-            # are allowed, so we only rule out violations of the hierarchy:
-            if isinstance(part, (Score, Staff, Measure, Note, Rest, Chord)):
-                return False
-            if isinstance(part, Part) and not part.is_measured():
-                return False
-        return True
-
-
-    def merge_tied_notes(self) -> "Score":
-        """Create a new Score with tied note sequences replaced by
-        equivalent notes
-
-        Returns
-        -------
-        Score
-            A new Score instance with tied notes merged.
-        """
-        score = self.emptycopy()
-        for part in self.content:
-            if isinstance(part, Part):
-                self.insert(part.merge_tied_notes(score))
-            else:
-                part.deepcopy_into(score)
-        return score
-
-
-    def remove_measures(self) -> "Score":
-        """Create a new Score with all Measures removed, but preserving
-        Staffs in the hierarchy. Notes are "lifted" from Measures to become
-        direct content of their Staff. The result satisfies neither is_flat()
-        nor is_measured(), but it could be useful in preserving a
-        separation between staves. See also ``collapse_parts()``, which
-        can be used to extract individual staves from a score. The result
-        will have ties merged. (If you want to preserve ties and access
-        the notes in a Staff, consider using find_all(Staff), and then
-        for each staff, find_all(Note), but note that ties can cross
-        between staves.)
-
-        Returns
-        -------
-        Score
-            A new Score instance with all Measures removed.
-        """
-        score = self.emptycopy()
-        for part in self.content:
-            if isinstance(part, Part):
-                part = part.merge_tied_notes(score)
-                part.remove_measures(score, has_ties=False)
-            else:  # non-Part objects are simply copied
-                part.deepcopy_into(score)
-        return score
-
-
-    def note_containers(self):
-        """Returns a list of note containers. For Measured Scores, these
-        are the Staff objects. For Flat Scores, these are the Part
-        objects. This is mainly useful for extracting note sequences where
-        each staff represents a separate sequence. In a Flat Score,
-        staves are collapsed and each Part (instrument) represents a
-        separate sequence.
-        """
-        containers = []
-        for part in self.content:
-            if len(part.content) > 0 and isinstance(part.content[0], Staff):
-                containers += part.content
-            else:
-                containers.append(part)
-        return containers
-
-
-    def is_flat(self):
-        """Test if Score is flat. Conforms to strict hierarchy of:
-        Score-Part-Note with no tied notes.
-        """
-        for part in self.content:
-            # only Parts are expected, but things outside of the hierarchy
-            # are allowed, so we only rule out violations of the hierarchy:
-            if isinstance(part, (Score, Staff, Measure, Note, Rest, Chord)):
-                return False
-            if isinstance(part, Part) and not part.is_flat():
-                return False
-        return True
-
-
-    def is_flat_and_collapsed(self):
-        """Determine if score has been flattened into one part"""
-        return self.part_count() == 1 and self.is_flat()
-
-
-    def part_count(self):
-        """How many parts are in this score?"""
-        return len(self.find_all(Part))
-
-
-    def flatten(self, collapse=False):
-        """Deep copy notes in a score to a flattened score consisting of
-        only Parts containing Notes. If collapse is True, multiple parts are
-        collapsed into a single part, and notes are ordered according to
-        onset times. Tied notes are merged unless keep_ties is True.
-        """
-        score = self.merge_tied_notes()  # also copies score
-        # it is now safe to modify score because it has been copied
-        if collapse:  # similar to Part.flatten() but we have to sort and
-            # do some other extra work to put all notes into score
-            new_part = Part(score)
-            notes = score.find_all(Note)
-
-            # adjust deltas for new parent: new_part will have delta = 0,
-            # so note deltas will be relative to score.offset (which is
-            # probably 0 too, but not required):
-            for note in notes:
-                note.delta = note.onset - score.delta
-                note.parent = new_part
-            notes.sort(key=lambda x: x.delta)
-            new_part.content = notes
-
-            # set the Part duration so it ends at the max offset of all Parts:
-            offset = max((part.offset for part in self.find_all(Part)), default=0)
-            new_part.duration = offset - score.delta
-
-        else:  # flatten each part separately
-            for part in score.find_all(Part):
-                part.flatten(in_place=True)
-        return score
-
-
     def collapse_parts(self, part=None, staff=None, has_ties=True):
         """merge the notes of selected Parts and Staffs into a flattened
         score with only one part, retaining only Notes. If you are using
@@ -2029,7 +1870,7 @@ class Score(Concurrence):
         part may be an integer to match a part number
         part may be a string to match a part instrument
         part may be a list with an index, e.g. [3] will select
-        the 4th part (with zero-based indexing)
+        the 4th part (because indexing is zero-based)
         If staff is given, only the notes from selected staves are included.
         staff may be an integer to match a staff number
         staff may be a list with an index, e.g. [1] will select
@@ -2076,7 +1917,7 @@ class Score(Concurrence):
         # now content is a list of Parts or Staffs to merge
         notes = []
         for part_or_staff in content:  # works with both Part and Score:
-            notes.append(part_or_staff.find_all(Note))
+            notes += part_or_staff.list_all(Note)
         new_part = Part(score)
         if not has_ties:
             # because we avoided merging ties in parts, notes still belong
@@ -2109,6 +1950,231 @@ class Score(Concurrence):
         return score
 
 
+    def flatten(self, collapse=False):
+        """Deep copy notes in a score to a flattened score consisting of
+        only Parts containing Notes. If collapse is True, multiple parts are
+        collapsed into a single part, and notes are ordered according to
+        onset times. Tied notes are merged unless keep_ties is True.
+        """
+        score = self.merge_tied_notes()  # also copies score
+        # it is now safe to modify score because it has been copied
+        if collapse:  # similar to Part.flatten() but we have to sort and
+            # do some other extra work to put all notes into score
+            new_part = Part(score)
+            notes = score.list_all(Note)  # force iterator into list to sort
+            score.content = [new_part]  # remove all other parts and events
+
+            # adjust deltas for new parent: new_part will have delta = 0,
+            # so note deltas will be relative to score.offset (which is
+            # probably 0 too, but not required):
+            for note in notes:
+                note.delta = note.onset - score.delta
+                note.parent = new_part
+            # notes with equal onset times are sorted in pitch from high to low
+            notes.sort(key=lambda x: (x.delta, -note.pitch.keynum))
+            new_part.content = notes  # content will have only Notes
+
+            # set the Part duration so it ends at the max offset of all Parts:
+            offset = max((part.offset for part in self.find_all(Part)), default=0)
+            new_part.duration = offset - score.delta
+
+        else:  # flatten each part separately
+            for part in score.find_all(Part):
+                part.flatten(in_place=True)
+        return score
+
+
+    @classmethod
+    def _from_melody(cls,
+                     pitches: list[Union[int, Pitch]],
+                     deltas: list[float],
+                     durations: list[float]) -> "Score":
+        """Helper function to create a Score from preprocessed lists of pitches,
+        deltas, and durations.
+
+        All inputs must be lists of the same length, with numeric values already
+        converted to float.
+        """
+        if not (len(pitches) == len(deltas) == len(durations)):
+            raise ValueError("All inputs must be lists of the same length")
+        if not all(isinstance(x, float) for x in deltas):
+            raise ValueError("All deltas must be floats")
+        if not all(isinstance(x, float) for x in durations):
+            raise ValueError("All durations must be floats")
+
+        # Check for overlapping notes
+        for i in range(len(deltas) - 1):
+            current_end = deltas[i] + durations[i]
+            next_onset = deltas[i + 1]
+            if current_end > next_onset:
+                raise ValueError(
+                    f"Notes overlap: note {i} ends at {current_end:.2f} but note {i + 1} starts at {next_onset:.2f}"
+                )
+
+        score = cls()
+        part = Part(score)
+
+        # Create notes and add them to the part
+        for pitch, delta, duration in zip(pitches, deltas, durations):
+            if not isinstance(pitch, Pitch):
+                pitch = Pitch(pitch)
+            note = Note(part, duration=duration, pitch=pitch, delta=delta)
+
+        # Set the score duration to the end of the last note
+        if len(deltas) > 0:
+            score.duration = float(
+                max(delta + duration for delta, duration in zip(deltas, durations))
+            )
+        else:
+            score.duration = 0.0
+
+        return score
+
+
+    def is_flat(self):
+        """Test if Score is flat. Conforms to strict hierarchy of:
+        Score-Part-Note with no tied notes.
+        """
+        for part in self.content:
+            # only Parts are expected, but things outside of the hierarchy
+            # are allowed, so we only rule out violations of the hierarchy:
+            if isinstance(part, (Score, Staff, Measure, Note, Rest, Chord)):
+                return False
+            if isinstance(part, Part) and not part.is_flat():
+                return False
+        return True
+
+
+    def is_flat_and_collapsed(self):
+        """Determine if score has been flattened into one part"""
+        return self.part_count() == 1 and self.is_flat()
+
+
+    def is_measured(self) -> bool:
+        """Test if Score is measured. Conforms to strict hierarchy of:
+        Score-Part-Staff-Measure-(Note or Rest or Chord) and Chord-Note.
+
+        Returns
+        -------
+        bool
+            True if the Score is measured, False otherwise.
+        """
+        for part in self.content:
+            # only Parts are expected, but things outside of the hierarchy
+            # are allowed, so we only rule out violations of the hierarchy:
+            if isinstance(part, (Score, Staff, Measure, Note, Rest, Chord)):
+                return False
+            if isinstance(part, Part) and not part.is_measured():
+                return False
+        return True
+
+
+    def merge_tied_notes(self) -> "Score":
+        """Create a new Score with tied note sequences replaced by
+        equivalent notes
+
+        Returns
+        -------
+        Score
+            A new Score instance with tied notes merged.
+        """
+        score = self.emptycopy()
+        for part in self.content:
+            if isinstance(part, Part):
+                part.merge_tied_notes(score)
+            else:
+                part.deepcopy_into(score)
+        return score
+
+
+    def note_containers(self):
+        """Returns a list of non-empty note containers. For Measured Scores,
+        these are the Staff objects. For Flat Scores, these are the Part
+        objects. This is mainly useful for extracting note sequences where
+        each staff represents a separate sequence. In a Flat Score,
+        staves are collapsed and each Part (instrument) represents a
+        separate sequence. This implementation also handles a mix of
+        Parts with and without Staffs, returning a list of whichever
+        is the direct parent of a list of Notes.
+        """
+        containers = []
+        # start with parts, which are common to both measured scores and
+        # flat scores. If the Part has a Staff, the Staffs are the
+        # containers we want. If the Part has a Note, the Part itself is
+        # the container. Other event classes can exist and are ignored.
+        for part in self.find_all(Part):
+            for event in part.content:
+                if isinstance(event, Staff):
+                    containers += part.list_all(Staff)
+                    break
+                elif isinstance(event, Note):
+                    containers.append(part)
+                    break
+            # if part was empty, it is not added to containers
+        return containers
+
+
+    def part_count(self):
+        """How many parts are in this score?"""
+        return len(self.list_all(Part))
+
+
+    def remove_measures(self) -> "Score":
+        """Create a new Score with all Measures removed, but preserving
+        Staffs in the hierarchy. Notes are "lifted" from Measures to become
+        direct content of their Staff. The result satisfies neither is_flat()
+        nor is_measured(), but it could be useful in preserving a
+        separation between staves. See also ``collapse_parts()``, which
+        can be used to extract individual staves from a score. The result
+        will have ties merged. (If you want to preserve ties and access
+        the notes in a Staff, consider using find_all(Staff), and then
+        for each staff, find_all(Note), but note that ties can cross
+        between staves.)
+
+        Returns
+        -------
+        Score
+            A new Score instance with all Measures removed.
+        """
+        score = self.emptycopy()
+        for part in self.content:
+            if isinstance(part, Part):
+                part = part.merge_tied_notes(score)
+                part.remove_measures(score, has_ties=False)
+            else:  # non-Part objects are simply copied
+                part.deepcopy_into(score)
+        return score
+
+
+    def show(self, indent: int = 0) -> "Score":
+        """Display the Score information.
+
+        Parameters
+        ----------
+        indent : int, optional
+            The indentation level for display. (Defaults to 0)
+
+        Returns
+        -------
+        Score
+            The Score instance itself.
+        """
+
+        print(" " * indent, f"Score at {self.onset:0.3f} delta ",
+              f"{self.delta:0.3f} duration {self.duration:0.3f}", sep="")
+        self.time_map.show(indent + 4)
+        for elem in self.content:
+            elem.show(indent + 4)
+        return self
+
+
+    def sorted_notes(self):
+        """Return a list of sorted notes with merged ties"""
+        # score will have one Part, content of which is all Notes:
+        return self.flatten(collapse=True).content[0].content
+
+
+
 class Part(Concurrence):
     """A Part models a staff or staff group such as a grand staff. For that
     reason, a Part contains one or more Staff objects. It should not contain
@@ -2126,8 +2192,6 @@ class Part(Concurrence):
             The onset (start) time relative to the parent's onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to 0)
-        content : List[Event], optional
-            Elements contained within this collection. (Defaults to [])
 
     Attributes
     ----------
@@ -2141,18 +2205,17 @@ class Part(Concurrence):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
     """
 
     def __init__(self,
-                 parent: Optional(Score),
-                 number: Optionl(str) = None,
-                 instrument: Optional(str) = None,
+                 parent: Optional[Score],
+                 number: Optional[str] = None,
+                 instrument: Optional[str] = None,
                  delta: float = 0,
-                 duration: float = 0,
-                 content: Optional(List[Event]) = None):
-        super().__init__(parent, delta, duration, content)
+                 duration: float = 0):
+        super().__init__(parent, delta, duration)
         self.number = number
         self.instrument = instrument
 
@@ -2189,7 +2252,7 @@ class Part(Concurrence):
         return True
 
 
-    def merge_tied_notes(self, parent=None):
+    def merge_tied_notes(self, parent: Optional[Score] = None) -> "Part":
         """Create a new Part with tied note sequences replaced by
         equivalent notes in each staff. Insert the new Part into parent.
         In cases where a note is tied across Staffs, the merged note is
@@ -2214,7 +2277,7 @@ class Part(Concurrence):
         # If the result is not unique, raise an exception.
 
         part = self.deepcopy_into(parent)
-        notes = part.find_all(Note)
+        notes = part.list_all(Note)
         tied_groups = []
         for i, note in enumerate(notes):
             if note.tie == "start":
@@ -2232,7 +2295,7 @@ class Part(Concurrence):
 
 
     @classmethod
-    def _find_tied_group(notes, i):
+    def _find_tied_group(self, notes, i):
         """find notes tied to notes[i]"""
         group = [notes[i]]  # start the list
         while notes[i].tie == "start" or notes[i].tie == "continue":
@@ -2270,7 +2333,7 @@ class Part(Concurrence):
         merged.
         """
         part = self if in_place else self.merge_tied_notes()
-        notes = part.find_all(Note)
+        notes = part.list_all(Note)  # need list so we can sort
         # adjust deltas for new parent
         part_onset = part.onset
         for note in notes:
@@ -2340,8 +2403,6 @@ class Staff(Sequence):
             The onset (start) time relative to the parent's onset time. (Defaults to 0)
         duration : float, optional
             The duration in quarters or seconds. (Defaults to 0)
-        content : List[Event], optional
-            Elements contained within this collection. (Defaults to [])
 
     Attributes
     ----------
@@ -2351,7 +2412,7 @@ class Staff(Sequence):
             The onset (start) time relative to the parent's onset time.
         duration : float
             The duration in quarters or seconds.
-        content : List[Event]
+        content : list[Event]
             Elements contained within this collection.
         number : Optional[int]
             The staff number. Normally a Staff is given an integer number
@@ -2362,9 +2423,8 @@ class Staff(Sequence):
                  parent: Optional[EventGroup],
                  number: Optional[int] = None,
                  delta: float = 0,
-                 duration: float = 0,
-                 content: Optional[List[Event]] = None):
-        super().__init__(parent, delta, duration, content)
+                 duration: float = 0):
+        super().__init__(parent, delta, duration)
         self.number = number
 
 

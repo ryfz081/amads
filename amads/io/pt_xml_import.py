@@ -167,7 +167,7 @@ def staff_for_note(part, event):
 
 def partitura_convert_part(ppart, score):
     # note ppart.quarter_map(x) maps divs to quarters
-    part = Part(None, instrument=ppart.part_name)
+    part = Part(score, instrument=ppart.part_name)
     durs = ppart.quarter_durations()
     staff_numbers = set()
     measures = []
@@ -185,15 +185,16 @@ def partitura_convert_part(ppart, score):
     print("measures", measures)
     for staff_num in range(0, len(staff_numbers)):
         staff = Staff(part, staff_num + 1)
+        measure_delta = 0
         for m in measures:
             if m[0] == "timesig":
                 # assume timesig is inside a measure, which would be the last
                 # measure (so far) in this staff, and assume we are at the
                 # beginning of the measure; delta=0 overrides putting this
                 # at the end of the measure which already has a duration
-                staff.last.append(TimeSignature(m[1], m[2]), delta=0)
+                TimeSignature(staff.last, m[1], m[2])
             elif m[0] == "keysig":
-                staff.last.append(KeySignature(m[1], delta=0))
+                KeySignature(staff.last, m[1])
             else:
                 # convert divs duration to quarters
                 duration = div_to_quarter(durs, m[2], rnd=True) - div_to_quarter(
@@ -201,10 +202,11 @@ def partitura_convert_part(ppart, score):
                 )
                 if duration > 0:  # do not append zero-length measures that arise
                     # from rounding errors in Partitura:
-                    staff.append(Measure(None, duration=duration))
+                    Measure(staff, None, measure_delta, duration=duration)
+                    measure_delta += duration
+        staff.inherit_duration()
         print("added measures to staff:")
         staff.show()
-        part.append(staff)
 
     # pass 2: gather notes and rests
     events = []
@@ -276,9 +278,8 @@ def partitura_convert_part(ppart, score):
                 print("Before inserting note:")
                 note.show()
                 # id_to_event[event[5]] = note  # build temporary map in dictionary
-                measure.insert(note)
         elif event[0] == "Rest":
-            measure.insert(Rest(event[2]), delta=measure.delta)
+            Rest(measure, duration=event[2], delta=measure.delta)
         else:
             assert False
     return part
@@ -294,5 +295,6 @@ def partitura_xml_import(filename, ptprint=False):
             print(ptpart.pretty())
     score = Score()
     for ptpart in ptscore.parts:
-        score.append(partitura_convert_part(ptpart, score))
+        partitura_convert_part(ptpart, score)
+    score.inherit_duration()
     return score

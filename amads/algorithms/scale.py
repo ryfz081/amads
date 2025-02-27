@@ -14,11 +14,11 @@ def scale(score, factor=2.0, dim="all"):
         Score object or other EventGroup object to be modified
     factor : float
         Amount to scale by (must be > 0)
-    dim : {'start', 'duration', 'all'}
+    dim : {'onset', 'duration', 'all'}
         Dimension to scale:
-        - 'start': scales the start times of all events
+        - 'onset': scales the onset times of all events
         - 'duration': scales the durations of all non-EventGroup events (Note, Rest)
-        - 'all': scales both start times and durations
+        - 'all': scales both onset times and durations
 
     Returns
     -------
@@ -27,17 +27,17 @@ def scale(score, factor=2.0, dim="all"):
     """
     if dim == "all":
         scale(score, factor, "duration")
-        scale(score, factor, "start")
+        scale(score, factor, "onset")
         return score
     for elem in score.content:
         if isinstance(elem, EventGroup):
             scale(elem, factor, dim)
-            if dim == "start":
-                elem.start *= factor
+            if dim == "onset":
+                elem.onset *= factor
         else:
             if dim == "duration":
                 elem.duration *= factor
-            elif dim == "start":
-                elem.start *= factor
+            elif dim == "onset":
+                elem.onset *= factor
         score.duration = max(score.duration, elem.offset)
     return score
