@@ -47,11 +47,6 @@ def skyline(score: Score, threshold: float = 0.1):
     skyline = Part(new_score)
     notes = score.sorted_notes()
 
-    print("Skyline input note onsets and pitches:")
-    for note in notes:
-        print(str(note.onset) + "/" + str(note.pitch.keynum), end=" ")
-    print()
-
     # Algorithm: the basic idea is to scan notes and copy them
     # to skyline, a Part object. We can use shallow copy
     # because notes are already deep copied from score after

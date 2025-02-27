@@ -25,19 +25,27 @@ def scale(score, factor=2.0, dim="all"):
     EventGroup
         The scaled version of the input score (modified in place)
     """
+    # Algorithm: onset times are scaled when all deltas are scaled.
+    # Note that setting onsets directly is not straightforward: if
+    # you scale the parent onset first (changing the delta) that
+    # will change all the children onsets before you get a chance
+    # to scale them. If you scale the children first, then they
+    # will have incorrect values after you scale the parent.
+
+    assert dim in ["all", "onset", "duration"]
     if dim == "all":
         scale(score, factor, "duration")
         scale(score, factor, "onset")
         return score
+    if dim == "onset":
+        score.delta *= factor
+    else:  # dim must be duration
+        score.duration *= factor
     for elem in score.content:
         if isinstance(elem, EventGroup):
             scale(elem, factor, dim)
-            if dim == "onset":
-                elem.onset *= factor
-        else:
-            if dim == "duration":
-                elem.duration *= factor
-            elif dim == "onset":
-                elem.onset *= factor
-        score.duration = max(score.duration, elem.offset)
+        elif dim == "onsets":
+            elem.delta *= factor
+        else:  # dim == "duration"
+            elem.duration *= factor
     return score

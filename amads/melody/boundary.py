@@ -64,8 +64,8 @@ def boundary(score: Score):
 
     # profiles
     pp = [abs(pair[1].keynum - pair[0].keynum) for pair in zip(notes, notes[1:])]
-    po = [pair[1].start - pair[0].start for pair in zip(notes, notes[1:])]
-    pr = [max(0, pair[1].start - pair[0].end) for pair in zip(notes, notes[1:])]
+    po = [pair[1].onset - pair[0].onset for pair in zip(notes, notes[1:])]
+    pr = [max(0, pair[1].onset - pair[0].offset) for pair in zip(notes, notes[1:])]
 
     def list_degrees(profile):
         ret_list = [
@@ -99,4 +99,4 @@ def boundary(score: Score):
         b.append(0.25 * sp_elem + 0.5 * so_elem + 0.25 * sr_elem)
     assert len(b) == len(notes)
 
-    return [(note.start, boundary) for (note, boundary) in zip(notes, b)]
+    return [(note.onset, boundary) for (note, boundary) in zip(notes, b)]

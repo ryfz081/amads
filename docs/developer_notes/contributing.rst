@@ -51,11 +51,12 @@ For team members
     git checkout -b feature-name
 
 2. Make your changes and commit them
-3. Push the branch::
+3. See "Before you push, there might be new changes ..." below.
+4. Push the branch::
 
     git push origin feature-name
 
-4. Open a pull request from your branch to main
+5. Open a pull request from your branch to main
 
 For external contributors
 ^^^^^^^^^^^^^^^^^^^^^^^
