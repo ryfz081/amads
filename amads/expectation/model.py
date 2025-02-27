@@ -3,6 +3,7 @@ import math
 
 from amads.expectation.probability import ProbabilityDistribution
 from amads.expectation.tokenizer import Token
+from amads.expectation.predictions import Prediction, SequencePrediction
 
 
 class ExpectationModel:
@@ -60,11 +61,16 @@ class MarkovModel(ExpectationModel):
     def train(self, corpus) -> None:
         """Train the model by counting N-gram frequencies in the corpus. 
         This will reset the model to its initial untrained state before training."""
-        
         self.reset()
+        
+        # First pass: establish complete vocabulary from corpus
+        for sequence in corpus:
+            self.vocabulary.update(sequence)
+            
+        # Second pass: count n-grams
         self.update(corpus)
 
-    def predict_sequence(self, sequence: List[Token]) -> List[ProbabilityDistribution]:
+    def predict_sequence(self, sequence: List[Token]) -> SequencePrediction:
         """Generate predictions for each token in the sequence given previous tokens."""
         predictions = []
         seq = tuple(sequence)
@@ -73,21 +79,18 @@ class MarkovModel(ExpectationModel):
         for i in range(len(seq) - self.order):
             context = seq[i:i + self.order]
             target = seq[i + self.order]
-            pred = self.predict_token(context, target)
-            predictions.append(pred)
+            predictions.append(self.predict_token(context, target))
             
-        return predictions
+        return SequencePrediction(predictions)
 
-    def predict_token(self, context: tuple, current_token: Token) -> ProbabilityDistribution:
+    def predict_token(self, context: tuple, current_token: Token) -> Prediction:
         """Predict probability distribution for next token given context."""
-        # Add current_token to vocabulary if it's new
-        self.vocabulary.add(current_token)
         V = len(self.vocabulary)  # vocabulary size
         
         if context not in self.ngrams:
             # For unseen contexts, use maximum smoothing (equivalent to uniform)
-            # Every token gets the same smoothed probability
-            return ProbabilityDistribution({t: 1/V for t in self.vocabulary})
+            prediction = ProbabilityDistribution({t: 1/V for t in self.vocabulary})
+            return Prediction(prediction, observation=current_token)
             
         # Get counts and apply smoothing
         probabilities = {}
@@ -98,7 +101,8 @@ class MarkovModel(ExpectationModel):
             count = self.ngrams[context].get(token, 0)
             probabilities[token] = (count + self.smoothing_factor) / total_count
         
-        return ProbabilityDistribution(probabilities)
+        prediction = ProbabilityDistribution(probabilities)
+        return Prediction(prediction, observation=current_token)
 
 class IDyOMModel(ExpectationModel):
     def __init__(self, max_order: int = 8, smoothing_factor: float = 0.1, bias: float = 1.0):
@@ -133,7 +137,7 @@ class IDyOMModel(ExpectationModel):
 
     def train(self, corpus) -> None:
         """Train only the Long-Term Models (LTM) on the corpus."""
-        # Train LTM models first (and build vocabulary
+        # Train LTM models first (and build vocabulary)
         for model in self.ltm_models:
             model.train(corpus)
         
@@ -147,24 +151,7 @@ class IDyOMModel(ExpectationModel):
             model.reset()
             model.vocabulary = full_vocab.copy()  # Give each STM model the full vocabulary
 
-    def _calculate_shannon_entropy(self, distribution: ProbabilityDistribution) -> float:
-        """Calculate Shannon entropy E(X) of a probability distribution."""
-        entropy = 0
-        for _, p in distribution.distribution.items():
-            entropy -= p * math.log2(p)
-        return entropy
-    
-    def _calculate_max_entropy(self, support_size: int) -> float:
-        """Calculate maximum entropy Emax(X) for given support size."""
-        return math.log2(support_size)
-    
-    def _calculate_normalized_entropy(self, distribution: ProbabilityDistribution) -> float:
-        """Calculate normalized entropy NE(X) = E(X)/Emax(X)."""
-        shannon_entropy = self._calculate_shannon_entropy(distribution)
-        max_entropy = self._calculate_max_entropy(len(distribution.distribution))
-        return shannon_entropy / max_entropy
-
-    def predict_token(self, context: Sequence[Token], target: Token = None) -> ProbabilityDistribution:
+    def predict_token(self, context: Sequence[Token], target: Token = None) -> Prediction:
         """Predict the next token given a context using both LTM and STM models."""
         # Get predictions from all available orders of LTM and STM
         ltm_predictions = []
@@ -178,16 +165,16 @@ class IDyOMModel(ExpectationModel):
             ltm_pred = self.ltm_models[model_idx].predict_token(order_context, target)
             stm_pred = self.stm_models[model_idx].predict_token(order_context, target)
             
-            ltm_predictions.append(ltm_pred)
-            stm_predictions.append(stm_pred)
+            ltm_predictions.append(ltm_pred.prediction)  # Note: accessing the ProbabilityDistribution
+            stm_predictions.append(stm_pred.prediction)
             
         # Combine predictions using entropy weighting
         combined_ltm = self.entropy_weighted_combination(ltm_predictions)
         combined_stm = self.entropy_weighted_combination(stm_predictions)
         
         # Final combination of LTM and STM
-        final_pred = self.entropy_weighted_combination([combined_ltm, combined_stm])
-        return final_pred
+        final_prediction = self.entropy_weighted_combination([combined_ltm, combined_stm])
+        return Prediction(final_prediction, observation=target)
 
     def entropy_weighted_combination(self, predictions: List[ProbabilityDistribution]) -> ProbabilityDistribution:
         """Combine predictions using entropy-based weighting."""
@@ -222,7 +209,7 @@ class IDyOMModel(ExpectationModel):
                 
         return ProbabilityDistribution(combined)
 
-    def predict_sequence(self, sequence: List[Token]) -> List[ProbabilityDistribution]:
+    def predict_sequence(self, sequence: List[Token]) -> SequencePrediction:
         """Generate predictions for each token in the sequence given previous tokens."""
         predictions = []
         seq = tuple(sequence)
@@ -237,10 +224,9 @@ class IDyOMModel(ExpectationModel):
             # Get context and make prediction
             context = seq[:i + 1]  # Use all available context
             target = seq[i + 1]
-            pred = self.predict_token(context, target)
-            predictions.append(pred)
+            predictions.append(self.predict_token(context, target))
             
-        return predictions
+        return SequencePrediction(predictions)
 
 
 

@@ -22,8 +22,8 @@ score_data = pickle.load(open(data_path, 'rb'))
 tokenizer = MelodyIntervalTokenizer()
 dataset = ScoreDataset(score_data, tokenizer)
 
-training_sequences = dataset[0:-10].copy()
-test_sequence = dataset[-7].copy()
+training_sequences = dataset[0:-10]
+test_sequence = dataset[-2]
 
 # Create and train both models: A simple Markov model and a more complex IDyOM model
 idyom = IDyOMModel(max_order=5, smoothing_factor=0.01)
