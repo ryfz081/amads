@@ -53,14 +53,17 @@ class Tokenizer(ABC):
     """
     @abstractmethod    
     def tokenize(self, x) -> List[Token]:
-        """
-        Convert input data into a sequence of tokens.
-        
-        Args:
-            x: Input data to be tokenized (type depends on specific tokenizer)
-            
-        Returns:
-            List[Token]: A sequence of tokens representing the input
+        """Convert input data into a sequence of tokens.
+
+        Parameters
+        ----------
+        x : Any
+            Input data to be tokenized (type depends on specific tokenizer)
+
+        Returns
+        -------
+        List[Token]
+            A sequence of tokens representing the input
         """
         pass
 
