@@ -35,6 +35,7 @@ Score (one per musical work or movement)
 import functools
 import weakref
 from math import floor
+from typing import List, Optional, Union
 
 from .time_map import TimeMap
 
@@ -74,27 +75,27 @@ class Event:
         self._parent = weakref.ref(p)
 
     @property
-    def start(self):
-        """Retrieve the start time in quarters."""
+    def onset(self):
+        """Retrieve the onset time in quarters."""
         p = self.parent  # save it to prevent race condition
         if p is None:
             return self.delta
-        return p.start + self.delta
+        return p.onset + self.delta
 
     @property
-    def end(self):
-        return self.start + self.duration
+    def offset(self):
+        return self.onset + self.duration
 
-    @start.setter
-    def start(self, value):
+    @onset.setter
+    def onset(self, value):
         if self.parent is None:
             self.delta = value
         else:
-            self.delta = value - self.parent.start
+            self.delta = value - self.parent.onset
 
-    @end.setter
-    def end(self, value):
-        self.duration = value - self.start
+    @offset.setter
+    def offset(self, value):
+        self.duration = value - self.onset
         assert self.duration >= 0
 
 
@@ -117,7 +118,7 @@ class Rest(Event):
     def show(self, indent=0):
         print(
             " " * indent,
-            f"Rest at {self.start:.3f} ",
+            f"Rest at {self.onset:.3f} ",
             f"delta {self.delta:.3f} duration {self.duration:.3f}",
             sep="",
         )
@@ -186,7 +187,7 @@ class Note(Event):
             lyricinfo = " lyric " + self.lyric
         print(
             " " * indent,
-            f"Note at {self.start:0.3f} ",
+            f"Note at {self.onset:0.3f} ",
             f"delta {self.delta:0.3f} duration {self.duration:0.3f} pitch ",
             self.name_with_octave,
             tieinfo,
@@ -268,7 +269,7 @@ class TimeSignature(Event):
     def show(self, indent=0):
         print(
             " " * indent,
-            f"TimeSignature at {self.start:0.3f} delta ",
+            f"TimeSignature at {self.onset:0.3f} delta ",
             f"{self.delta:0.3f}: {self.beat}/{self.beat_type}",
             sep="",
         )
@@ -301,7 +302,7 @@ class KeySignature(Event):
     def show(self, indent=0):
         print(
             " " * indent,
-            f"KeySignature at {self.start:0.3f} delta ",
+            f"KeySignature at {self.onset:0.3f} delta ",
             f"{self.delta:0.3f}",
             abs(self.keysig),
             " sharps" if self.keysig > 0 else " flats",
@@ -490,7 +491,7 @@ class EventGroup(Event):
         print(
             " " * indent,
             label,
-            f" at {self.start:0.3f} delta ",
+            f" at {self.onset:0.3f} delta ",
             f"{self.delta:0.3f} duration {self.duration:0.3f}",
             sep="",
         )
@@ -601,7 +602,7 @@ class Sequence(EventGroup):
         or the Sequence start time if the Sequence is empty
         """
         if len(self.content) == 0:
-            return self.start
+            return self.onset
         else:
             return self.last.last_end
 
@@ -807,7 +808,7 @@ class Measure(Sequence):
 
 def note_start(note):
     """helper function to sort notes"""
-    return note.start
+    return note.onset
 
 
 class Score(Concurrence):
@@ -827,6 +828,170 @@ class Score(Concurrence):
         super().__init__(delta, duration, content)
         self.time_map = time_map if time_map else TimeMap()
 
+    @classmethod
+    def from_melody(
+        cls,
+        pitches: List[Union[int, Pitch]],
+        durations: Union[float, List[float]] = 1.0,
+        iois: Optional[Union[float, List[float]]] = None,
+        deltas: Optional[List[float]] = None,
+    ):
+        """Create a Score from a melody specified as a list of pitches and optional timing information.
+
+
+        Parameters
+        ----------
+        pitches : list of int or list of Pitch
+            MIDI note numbers or Pitch objects for each note.
+        durations : float or list of float
+            Durations in quarters for each note. If a scalar value, it will be repeated
+            for all notes. Defaults to 1.0 (quarter notes).
+        iois : float or list of float or None, optional
+            Inter-onset intervals in quarters between successive notes. If a scalar value,
+            it will be repeated for all notes. If not provided and deltas is None,
+            takes values from the durations argument, assuming that notes are placed sequentially
+            without overlap.
+        deltas : list of float or None, optional
+            Start times in quarters relative to the melody's start. Cannot be used together
+            with iois. If both are None, defaults to using durations as IOIs.
+
+        Returns
+        -------
+        Score
+            A new Score object containing the melody in a single part.
+            If pitches is empty, returns a score with an empty part.
+
+        Examples
+        --------
+        Create a simple C major scale with default timing (sequential quarter notes):
+
+        >>> score = Score.from_melody([60, 62, 64, 65, 67, 69, 71, 72])  # all quarter notes
+        >>> notes = score.content[0].content
+        >>> len(notes)  # number of notes in first part
+        8
+        >>> notes[0].pitch.keynum
+        60
+        >>> score.duration  # last note ends at t=8
+        8.0
+
+        Create three notes with varying durations:
+
+        >>> score = Score.from_melody(
+        ...     pitches=[60, 62, 64],  # C4, D4, E4
+        ...     durations=[0.5, 1.0, 2.0],
+        ... )
+        >>> score.duration  # last note ends at t=3.5
+        3.5
+
+        Create three notes with custom IOIs:
+
+        >>> score = Score.from_melody(
+        ...     pitches=[60, 62, 64],  # C4, D4, E4
+        ...     durations=1.0,  # quarter notes
+        ...     iois=2.0,  # 2 beats between each note start
+        ... )
+        >>> score.duration  # last note ends at t=5
+        5.0
+
+        Create three notes with explicit deltas:
+
+        >>> score = Score.from_melody(
+        ...     pitches=[60, 62, 64],  # C4, D4, E4
+        ...     durations=1.0,  # quarter notes
+        ...     deltas=[0.0, 2.0, 4.0],  # start times 2 beats apart
+        ... )
+        >>> score.duration  # last note ends at t=5
+        5.0
+        """
+        if len(pitches) == 0:
+            return cls._from_melody(pitches=[], deltas=[], durations=[])
+
+        if iois is not None and deltas is not None:
+            raise ValueError("Cannot specify both iois and deltas")
+
+        # Convert scalar durations to list
+        if isinstance(durations, (int, float)):
+            durations = [float(durations)] * len(pitches)
+
+        # If deltas are provided, use them directly
+        if deltas is not None:
+            if len(deltas) != len(pitches):
+                raise ValueError("deltas list must have same length as pitches")
+            deltas = [float(d) for d in deltas]
+
+        # Otherwise convert IOIs to deltas
+        else:
+            # If no IOIs provided, use durations as default IOIs
+            if iois is None:
+                iois = durations[:-1]  # last duration not needed for IOIs
+            # Convert scalar IOIs to list
+            elif isinstance(iois, (int, float)):
+                iois = [float(iois)] * (len(pitches) - 1)
+
+            # Validate IOIs length
+            if len(iois) != len(pitches) - 1:
+                raise ValueError("iois list must have length len(pitches) - 1")
+
+            # Convert IOIs to deltas
+            deltas = [0.0]  # first note starts at 0
+            current_time = 0.0
+            for ioi in iois:
+                current_time += float(ioi)
+                deltas.append(current_time)
+
+        if not (len(pitches) == len(deltas) == len(durations)):
+            raise ValueError("All input lists must have the same length")
+
+        return cls._from_melody(pitches, deltas, durations)
+
+    @classmethod
+    def _from_melody(
+        cls,
+        pitches: List[Union[int, Pitch]],
+        deltas: List[float],
+        durations: List[float],
+    ) -> "Score":
+        """Helper function to create a Score from preprocessed lists of pitches, deltas, and durations.
+
+        All inputs must be lists of the same length, with numeric values already converted to float.
+        """
+        if not (len(pitches) == len(deltas) == len(durations)):
+            raise ValueError("All inputs must be lists of the same length")
+        if not all(isinstance(x, float) for x in deltas):
+            raise ValueError("All deltas must be floats")
+        if not all(isinstance(x, float) for x in durations):
+            raise ValueError("All durations must be floats")
+
+        # Check for overlapping notes
+        for i in range(len(deltas) - 1):
+            current_end = deltas[i] + durations[i]
+            next_start = deltas[i + 1]
+            if current_end > next_start:
+                raise ValueError(
+                    f"Notes overlap: note {i} ends at {current_end:.2f} but note {i + 1} starts at {next_start:.2f}"
+                )
+
+        score = cls()
+        part = Part()
+        score.insert(part)
+
+        # Create notes and add them to the part
+        for pitch, delta, duration in zip(pitches, deltas, durations):
+            if not isinstance(pitch, Pitch):
+                pitch = Pitch(pitch)
+            note = Note(duration=duration, pitch=pitch, delta=delta)
+            part.insert(note)
+
+        # Set the score duration to the end of the last note
+        if len(deltas) > 0:
+            score.duration = float(
+                max(delta + duration for delta, duration in zip(deltas, durations))
+            )
+        else:
+            score.duration = 0.0
+
+        return score
+
     def copy(self):
         """Make a copy, omitting weak link to parent."""
         s = Score(delta=self.delta, duration=self.duration, time_map=self.time_map)
@@ -835,7 +1000,7 @@ class Score(Concurrence):
     def show(self, indent=0):
         print(
             " " * indent,
-            f"Score at {self.start:0.3f} delta ",
+            f"Score at {self.onset:0.3f} delta ",
             f"{self.delta:0.3f} duration {self.duration:0.3f}",
             sep="",
         )
@@ -927,19 +1092,19 @@ class Score(Concurrence):
         score_no_ties = self.strip_ties()  # strip ties
         if collapse:  # similar to Part.flatten() but we have to sort and
             # do some other extra work to put all notes into score
-            score_start = score.start
+            score_start = score.onset
             new_part = Part()
             max_delta_end = 0
             for part in score_no_ties.content:
                 for note in part.find_all(Note):
                     note_copy = note.deep_copy()
                     # note delta is now relative to start of part:
-                    note_copy.delta = note.start - score_start
+                    note_copy.delta = note.onset - score_start
                     max_delta_end = max(max_delta_end, note_copy.delta_end)
                     new_part.insert(note_copy)
             new_part.content = sorted(new_part.content, key=note_start)
             score.insert(new_part)
-            score.duration = score.start + max_delta_end
+            score.duration = score.onset + max_delta_end
         else:
             for part in self.content:
                 score.insert(part.flatten())
@@ -1085,11 +1250,11 @@ class Part(Concurrence):
         """
         part = self.strip_ties()
         flat = self.copy()
-        part_start = self.start
+        part_start = self.onset
         for note in part.find_all(Note):
             note_copy = note.deep_copy()
             # note delta is now relative to start of part:
-            note_copy.delta = note.start - part_start
+            note_copy.delta = note.onset - part_start
             flat.insert(note_copy)
         return flat
 
@@ -1188,7 +1353,7 @@ class Staff(Sequence):
         if m_index is None:  # get measure index
             m_index = self.content.index(measure)
         n_index = measure.content.index(note) + 1  # get note index
-        start = note.start
+        start = note.onset
         # search across all measures for tied-to note:
         while m_index < len(self.content):  # search all measures
             measure = self.content[m_index]
@@ -1197,7 +1362,7 @@ class Staff(Sequence):
                 event = measure.content[n_index]
                 if isinstance(event, Note) and event.keynum == note.keynum:
                     if event.tie == "stop":
-                        return event.end - start
+                        return event.offset - start
                     elif event.tie != "continue":
                         raise Exception("inconsistent tie attributes or notes")
                 elif isinstance(event, Chord):
