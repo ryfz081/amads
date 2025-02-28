@@ -104,6 +104,21 @@ class MarkovModel(ExpectationModel):
         prediction = ProbabilityDistribution(probabilities)
         return Prediction(prediction, observation=current_token)
 
+    def update_online(self, context: tuple, target: Token) -> None:
+        """Update the model with a single new observation."""
+        # For STM models, we should accept new tokens and add them to vocabulary
+        # This is different from corpus training, where vocabulary should be fixed
+        self.vocabulary.add(target)
+        for token in context:
+            self.vocabulary.add(token)
+
+        # Initialize context in ngrams if not present
+        if context not in self.ngrams:
+            self.ngrams[context] = {}
+        
+        # Count the frequency of the target given this context
+        self.ngrams[context][target] = self.ngrams[context].get(target, 0) + 1
+
 class IDyOMModel(ExpectationModel):
     def __init__(self, max_order: int = 8, smoothing_factor: float = 0.1, bias: float = 1.0):
         """
@@ -216,15 +231,16 @@ class IDyOMModel(ExpectationModel):
         
         # For each position where we can make a prediction (starting after first note)
         for i in range(len(seq) - 1):
-            # Train STM models on the sequence seen so far
-            current_sequence = seq[:i + 1]
-            for model in self.stm_models:
-                model.update([current_sequence])
-            
-            # Get context and make prediction
+            # Make prediction first
             context = seq[:i + 1]  # Use all available context
             target = seq[i + 1]
             predictions.append(self.predict_token(context, target))
+            
+            # Then update STM models with the new observation
+            for model in self.stm_models:
+                if len(context) >= model.order:
+                    model_context = context[-(model.order):]
+                    model.update_online(model_context, target)
             
         return SequencePrediction(predictions)
 
