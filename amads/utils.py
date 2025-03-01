@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Iterator, Optional
 
 
@@ -44,3 +45,17 @@ def check_python_package_installed(package_name: str):
             f"Package '{package_name}' is required but not installed. "
             f"Please install it using: pip install {package_name}"
         )
+
+
+def in_amads_root_directory():
+    """Check if current working directory is the root directory of amads."""
+    pyproject_path = Path("pyproject.toml")
+    if not pyproject_path.exists():
+        return False
+
+    with open(pyproject_path) as f:
+        for line in f:
+            if line.strip() == 'name = "amads"':
+                return True
+
+    return False
