@@ -70,7 +70,7 @@ class Tokenizer(ABC):
 
 # Re-export specific tokenizers
 from .tokenizers.melody_tokenizer import MelodyIntervalTokenizer, IOITokenizer
-from .tokenizers.midi_tokenizer import MIDITokenizer, TSDTokenizer
+from .tokenizers.midi_tokenizer import MIDITokenizer, TSDTokenizer, REMITokenizer, MIDILikeTokenizer
 from .tokenizers.audio_tokenizer import AudioTokenizer  # When implemented
 
 # Define what should be available when someone does "from tokenizer import *"
@@ -84,6 +84,8 @@ __all__ = [
     # MIDI tokenizers
     'MIDITokenizer',
     'TSDTokenizer',
+    'REMITokenizer',
+    'MIDILikeTokenizer',
     # Audio tokenizers
     'AudioTokenizer',
 ]
