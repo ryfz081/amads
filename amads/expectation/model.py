@@ -170,19 +170,17 @@ class MarkovEnsemble(EnsembleModel):
         for model in self.models:
             model.train(corpus)
 
-    def update_online(self, sequence: List[Token]) -> None:
+    def update_online(self, context: Sequence[Token], target: Token) -> None:
         """Update all models with new sequence data.
         
-        Updates each model to predict the last token in the sequence using
-        as much context as available for that model's order.
+        Args:
+            context: The sequence of tokens providing context
+            target: The token to predict
         """
-        seq = tuple(sequence)
-        target = seq[-1]  # Last token is always the target
-        
         for model in self.models:
-            if len(seq) > model.order:  # Only update if we have enough context
-                context = seq[-(model.order + 1):-1]  # Get appropriate context length
-                model.update_online(context, target)
+            if len(context) >= model.order:  # Only update if we have enough context
+                model_context = tuple(context[-model.order:])  # Get appropriate context length
+                model.update_online(model_context, target)
                 
     def predict_sequence(self, sequence: List[Token]) -> SequencePrediction:
         """Generate predictions for each token in the sequence."""
@@ -291,180 +289,292 @@ class MarkovEnsemble(EnsembleModel):
                 
         return ProbabilityDistribution(combined)
 
-
-class IDyOMModel(ExpectationModel):
-    def __init__(self, max_order: int = 8, smoothing_factor: float = 0.1, bias: float = 1.0):
-        """
-        Initialize IDyOM model with both long-term and short-term components.
+class IDyOMModel(EnsembleModel):
+    """A simplified IDyOM implementation using MarkovEnsemble for both LTM and STM components."""
+    
+    def __init__(self, min_order: int = 1, max_order: int = 8, 
+                 smoothing_factor: float = 0.01,
+                 combination_strategy: str = 'ppm-c'):
+        """Initialize IDyOM with both LTM and STM components using MarkovEnsemble.
         
         Args:
-            max_order: Maximum order of Markov models to use
+            min_order: Minimum order of Markov models
+            max_order: Maximum order of Markov models
             smoothing_factor: Smoothing factor for probability distributions
-            bias: Exponential bias parameter for entropy-based weighting.
-                 - bias > 1: Sharpens the weighting, giving even more influence to the more
-                   confident model (lower entropy)
-                 - bias < 1: Smooths the weighting, making the models' influences more equal
-                   regardless of their confidence
-                 - bias = 1: Direct use of inverse normalized entropy (default)
+            combination_strategy: Strategy for combining predictions from different order models
+                ('entropy', 'ppm-a', 'ppm-b', or 'ppm-c')
         """
+        self.min_order = min_order
         self.max_order = max_order
-        self.smoothing_factor = smoothing_factor
-        self.bias = bias
         
-        # Long-term models (trained on full corpus)
-        self.ltm_models = [
-            MarkovModel(order=i, smoothing_factor=smoothing_factor)
-            for i in range(1, max_order + 1)
-        ]
+        # Create LTM and STM components as MarkovEnsembles
+        self.ltm = MarkovEnsemble(
+            min_order=min_order,
+            max_order=max_order,
+            smoothing_factor=smoothing_factor,
+            combination_strategy=combination_strategy
+        )
         
-        # Short-term models (trained incrementally)
-        self.stm_models = [
-            MarkovModel(order=i, smoothing_factor=smoothing_factor)
-            for i in range(1, max_order + 1)
-        ]
+        self.stm = MarkovEnsemble(
+            min_order=min_order,
+            max_order=max_order,
+            smoothing_factor=smoothing_factor,
+            combination_strategy=combination_strategy
+        )
 
     def train(self, corpus) -> None:
-        """Train only the Long-Term Models (LTM) on the corpus."""
-        # Train LTM models first (and build vocabulary)
-        for model in self.ltm_models:
-            model.train(corpus)
+        """Train the LTM component on the corpus and reset the STM."""
+        # Train LTM on full corpus
+        self.ltm.train(corpus)
         
-        # Share the vocabulary with STM models
+        # Reset STM but ensure it has the same vocabulary as LTM
+        self.stm = MarkovEnsemble(
+            min_order=self.min_order,
+            max_order=self.max_order,
+            smoothing_factor=self.ltm.smoothing_factor,
+            combination_strategy=self.ltm.combination_strategy
+        )
+        
+        # Share vocabulary across all STM models
         full_vocab = set()
-        for model in self.ltm_models:
-            full_vocab.update(model.vocabulary)
+        for ltm_model in self.ltm.models:
+            full_vocab.update(ltm_model.vocabulary)
         
-        # Reset STM models but give them the full vocabulary
-        for model in self.stm_models:
-            model.reset()
-            model.vocabulary = full_vocab.copy()  # Give each STM model the full vocabulary
-
-    def predict_token(self, context: Sequence[Token], target: Token = None) -> Prediction:
-        """Predict the next token given a context using both LTM and STM models."""
-        # Get predictions from all available orders of LTM and STM
-        ltm_predictions = []
-        stm_predictions = []
-        
-        context_len = len(context)
-        for order in range(1, min(context_len + 1, self.max_order + 1)):
-            model_idx = order - 1
-            order_context = context[-order:]
-            
-            ltm_pred = self.ltm_models[model_idx].predict_token(order_context, target)
-            stm_pred = self.stm_models[model_idx].predict_token(order_context, target)
-            
-            ltm_predictions.append(ltm_pred.prediction)  # Note: accessing the ProbabilityDistribution
-            stm_predictions.append(stm_pred.prediction)
-            
-        # Combine predictions using entropy weighting
-        combined_ltm = self.entropy_weighted_combination(ltm_predictions)
-        combined_stm = self.entropy_weighted_combination(stm_predictions)
-        
-        # Final combination of LTM and STM
-        final_prediction = self.entropy_weighted_combination([combined_ltm, combined_stm])
-        return Prediction(final_prediction, observation=target)
+        for stm_model in self.stm.models:
+            stm_model.vocabulary = full_vocab.copy()
 
     def predict_sequence(self, sequence: List[Token]) -> SequencePrediction:
-        """Generate predictions for each token in the sequence given previous tokens."""
+        """Generate predictions for each token in the sequence."""
         predictions = []
         seq = tuple(sequence)
         
-        # For each position where we can make a prediction (starting after first note)
+        # For each position where we can make a prediction
         for i in range(len(seq) - 1):
             # Make prediction first
-            context = seq[:i + 1]  # Use all available context
+            context = seq[:i + 1]
             target = seq[i + 1]
             predictions.append(self.predict_token(context, target))
             
-            # Then update STM models with the new observation
-            for model in self.stm_models:
-                if len(context) >= model.order:
-                    model_context = context[-(model.order):]
-                    model.update_online(model_context, target)
+            # Update STM with the actual token that occurred
+            if i > 0:  # Only update after we have some context
+                self.stm.update_online(context, target)
             
         return SequencePrediction(predictions)
-    
-    def entropy_weighted_combination(self, predictions: List[ProbabilityDistribution]) -> ProbabilityDistribution:
-        """Combine predictions using entropy-based weighting."""
-        if not predictions:
-            return ProbabilityDistribution({})
+
+    def predict_token(self, context: Sequence[Token], target: Optional[Token] = None) -> Prediction:
+        """Generate predictions using both LTM and STM models."""
+        # Get predictions from both models
+        ltm_pred = self.ltm.predict_token(context, target)
+        stm_pred = self.stm.predict_token(context, target)
+        
+        # Combine LTM and STM predictions using entropy-weighted combination
+        combined = self._combine_ltm_stm(ltm_pred.prediction, stm_pred.prediction)
+        return Prediction(combined, observation=target)
+
+    def _combine_ltm_stm(self, ltm_dist: ProbabilityDistribution, 
+                        stm_dist: ProbabilityDistribution) -> ProbabilityDistribution:
+        """Combine LTM and STM predictions using entropy-weighted combination."""
+        # If STM distribution is empty (early in sequence), return LTM
+        if not stm_dist.distribution:
+            return ltm_dist
             
-        # Calculate entropy for each distribution
-        entropies = [pred.entropy() for pred in predictions]
-            
-        # Convert entropies to weights (lower entropy -> higher weight)
+        # Use entropy-weighted combination
+        entropies = [ltm_dist.entropy(), stm_dist.entropy()]
         total_entropy = sum(entropies)
+        
         if total_entropy == 0:
-            weights = [1/len(predictions)] * len(predictions)
+            weights = [0.5, 0.5]
         else:
             weights = [1 - (e/total_entropy) for e in entropies]
             weight_sum = sum(weights)
-            if weight_sum > 0:
-                weights = [w/weight_sum for w in weights]
-            else:
-                weights = [1/len(predictions)] * len(predictions)
+            weights = [w/weight_sum for w in weights]
         
-        # Combine distributions using weights
+        # Combine distributions
         combined = {}
-        all_tokens = set()
-        for pred in predictions:
-            all_tokens.update(pred.distribution.keys())
-            
+        all_tokens = set(ltm_dist.distribution.keys()) | set(stm_dist.distribution.keys())
+        
         for token in all_tokens:
-            weighted_sum = sum(pred.distribution.get(token, 0.0) * weight 
-                             for pred, weight in zip(predictions, weights))
-            combined[token] = weighted_sum
-                
-        return ProbabilityDistribution(combined)
-
-
-    def ppm_a_combination(self, predictions: List[ProbabilityDistribution], 
-                         contexts: List[tuple]) -> ProbabilityDistribution:
-        """Combine predictions using PPM-A weighting scheme.
-        
-        The weight for each order n is:
-        an = 1 - 1/(1 + Tn)
-        
-        where Tn is the number of times the context has been seen.
-        As Tn → ∞, an → 1 (rely on higher order)
-        As Tn → 0, an → 0 (escape to lower order)
-        
-        Args:
-            predictions: List of probability distributions from different orders
-            contexts: List of contexts used for each prediction (ei-1)
-        """
-        if not predictions:
-            return ProbabilityDistribution({})
+            ltm_prob = ltm_dist.distribution.get(token, 0.0)
+            stm_prob = stm_dist.distribution.get(token, 0.0)
+            combined[token] = (ltm_prob * weights[0] + stm_prob * weights[1])
             
-        # Calculate weights based on context frequencies
-        weights = []  # an for each order
-        for i, context in enumerate(contexts):
-            if i < len(self.ltm_models):
-                model = self.ltm_models[i]
-                # Tn(ei-1) = Σ counts for all continuations after context
-                Tn = sum(model.ngrams.get(context, {}).values())
-                # an = 1 - 1/(1 + Tn)
-                an = 1 - (1 / (1 + Tn)) if Tn > 0 else 0
-                weights.append(an)
-        
-        # Normalize weights to create proper probability distribution
-        if sum(weights) > 0:
-            weights = [w/sum(weights) for w in weights]
-        else:
-            # If no context seen, use uniform weighting
-            weights = [1/len(predictions)] * len(predictions)
-        
-        # Combine distributions using weights
-        combined = {}
-        all_tokens = set()
-        for pred in predictions:
-            all_tokens.update(pred.distribution.keys())
-            
-        for token in all_tokens:
-            # P(ei|ei-1) = Σ an * Pn(ei|ei-1)
-            weighted_sum = sum(pred.distribution.get(token, 0.0) * weight 
-                             for pred, weight in zip(predictions, weights))
-            combined[token] = weighted_sum
-                
         return ProbabilityDistribution(combined)
+    
 
+
+
+# class IDyOMModel(ExpectationModel):
+#     def __init__(self, max_order: int = 8, smoothing_factor: float = 0.1, bias: float = 1.0):
+#         """
+#         Initialize IDyOM model with both long-term and short-term components.
+        
+#         Args:
+#             max_order: Maximum order of Markov models to use
+#             smoothing_factor: Smoothing factor for probability distributions
+#             bias: Exponential bias parameter for entropy-based weighting.
+#                  - bias > 1: Sharpens the weighting, giving even more influence to the more
+#                    confident model (lower entropy)
+#                  - bias < 1: Smooths the weighting, making the models' influences more equal
+#                    regardless of their confidence
+#                  - bias = 1: Direct use of inverse normalized entropy (default)
+#         """
+#         self.max_order = max_order
+#         self.smoothing_factor = smoothing_factor
+#         self.bias = bias
+        
+#         # Long-term models (trained on full corpus)
+#         self.ltm_models = [
+#             MarkovModel(order=i, smoothing_factor=smoothing_factor)
+#             for i in range(1, max_order + 1)
+#         ]
+        
+#         # Short-term models (trained incrementally)
+#         self.stm_models = [
+#             MarkovModel(order=i, smoothing_factor=smoothing_factor)
+#             for i in range(1, max_order + 1)
+#         ]
+
+#     def train(self, corpus) -> None:
+#         """Train only the Long-Term Models (LTM) on the corpus."""
+#         # Train LTM models first (and build vocabulary)
+#         for model in self.ltm_models:
+#             model.train(corpus)
+        
+#         # Share the vocabulary with STM models
+#         full_vocab = set()
+#         for model in self.ltm_models:
+#             full_vocab.update(model.vocabulary)
+        
+#         # Reset STM models but give them the full vocabulary
+#         for model in self.stm_models:
+#             model.reset()
+#             model.vocabulary = full_vocab.copy()  # Give each STM model the full vocabulary
+
+#     def predict_token(self, context: Sequence[Token], target: Token = None) -> Prediction:
+#         """Predict the next token given a context using both LTM and STM models."""
+#         # Get predictions from all available orders of LTM and STM
+#         ltm_predictions = []
+#         stm_predictions = []
+        
+#         context_len = len(context)
+#         for order in range(1, min(context_len + 1, self.max_order + 1)):
+#             model_idx = order - 1
+#             order_context = context[-order:]
+            
+#             ltm_pred = self.ltm_models[model_idx].predict_token(order_context, target)
+#             stm_pred = self.stm_models[model_idx].predict_token(order_context, target)
+            
+#             ltm_predictions.append(ltm_pred.prediction)  # Note: accessing the ProbabilityDistribution
+#             stm_predictions.append(stm_pred.prediction)
+            
+#         # Combine predictions using entropy weighting
+#         combined_ltm = self.entropy_weighted_combination(ltm_predictions)
+#         combined_stm = self.entropy_weighted_combination(stm_predictions)
+        
+#         # Final combination of LTM and STM
+#         final_prediction = self.entropy_weighted_combination([combined_ltm, combined_stm])
+#         return Prediction(final_prediction, observation=target)
+
+#     def predict_sequence(self, sequence: List[Token]) -> SequencePrediction:
+#         """Generate predictions for each token in the sequence given previous tokens."""
+#         predictions = []
+#         seq = tuple(sequence)
+        
+#         # For each position where we can make a prediction (starting after first note)
+#         for i in range(len(seq) - 1):
+#             # Make prediction first
+#             context = seq[:i + 1]  # Use all available context
+#             target = seq[i + 1]
+#             predictions.append(self.predict_token(context, target))
+            
+#             # Then update STM models with the new observation
+#             for model in self.stm_models:
+#                 if len(context) >= model.order:
+#                     model_context = context[-(model.order):]
+#                     model.update_online(model_context, target)
+            
+#         return SequencePrediction(predictions)
+    
+#     def entropy_weighted_combination(self, predictions: List[ProbabilityDistribution]) -> ProbabilityDistribution:
+#         """Combine predictions using entropy-based weighting."""
+#         if not predictions:
+#             return ProbabilityDistribution({})
+            
+#         # Calculate entropy for each distribution
+#         entropies = [pred.entropy() for pred in predictions]
+            
+#         # Convert entropies to weights (lower entropy -> higher weight)
+#         total_entropy = sum(entropies)
+#         if total_entropy == 0:
+#             weights = [1/len(predictions)] * len(predictions)
+#         else:
+#             weights = [1 - (e/total_entropy) for e in entropies]
+#             weight_sum = sum(weights)
+#             if weight_sum > 0:
+#                 weights = [w/weight_sum for w in weights]
+#             else:
+#                 weights = [1/len(predictions)] * len(predictions)
+        
+#         # Combine distributions using weights
+#         combined = {}
+#         all_tokens = set()
+#         for pred in predictions:
+#             all_tokens.update(pred.distribution.keys())
+            
+#         for token in all_tokens:
+#             weighted_sum = sum(pred.distribution.get(token, 0.0) * weight 
+#                              for pred, weight in zip(predictions, weights))
+#             combined[token] = weighted_sum
+                
+#         return ProbabilityDistribution(combined)
+
+
+#     def ppm_a_combination(self, predictions: List[ProbabilityDistribution], 
+#                          contexts: List[tuple]) -> ProbabilityDistribution:
+#         """Combine predictions using PPM-A weighting scheme.
+        
+#         The weight for each order n is:
+#         an = 1 - 1/(1 + Tn)
+        
+#         where Tn is the number of times the context has been seen.
+#         As Tn → ∞, an → 1 (rely on higher order)
+#         As Tn → 0, an → 0 (escape to lower order)
+        
+#         Args:
+#             predictions: List of probability distributions from different orders
+#             contexts: List of contexts used for each prediction (ei-1)
+#         """
+#         if not predictions:
+#             return ProbabilityDistribution({})
+            
+#         # Calculate weights based on context frequencies
+#         weights = []  # an for each order
+#         for i, context in enumerate(contexts):
+#             if i < len(self.ltm_models):
+#                 model = self.ltm_models[i]
+#                 # Tn(ei-1) = Σ counts for all continuations after context
+#                 Tn = sum(model.ngrams.get(context, {}).values())
+#                 # an = 1 - 1/(1 + Tn)
+#                 an = 1 - (1 / (1 + Tn)) if Tn > 0 else 0
+#                 weights.append(an)
+        
+#         # Normalize weights to create proper probability distribution
+#         if sum(weights) > 0:
+#             weights = [w/sum(weights) for w in weights]
+#         else:
+#             # If no context seen, use uniform weighting
+#             weights = [1/len(predictions)] * len(predictions)
+        
+#         # Combine distributions using weights
+#         combined = {}
+#         all_tokens = set()
+#         for pred in predictions:
+#             all_tokens.update(pred.distribution.keys())
+            
+#         for token in all_tokens:
+#             # P(ei|ei-1) = Σ an * Pn(ei|ei-1)
+#             weighted_sum = sum(pred.distribution.get(token, 0.0) * weight 
+#                              for pred, weight in zip(predictions, weights))
+#             combined[token] = weighted_sum
+                
+#         return ProbabilityDistribution(combined)
