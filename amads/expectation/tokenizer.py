@@ -42,9 +42,7 @@ class Token:
         return f"{self.value} ({self.start_time}->{self.end_time})"
 
     def __repr__(self):
-        if self.start_time is None:
-            return f"{self.__class__.__name__}({self.value})"
-        return f"{self.__class__.__name__}({self.value}, {self.start_time}, {self.end_time})"
+        return f"{self.__class__.__name__}({self.value})"
 
 class Tokenizer(ABC):
     """
