@@ -1,6 +1,6 @@
 from typing import List, Sequence, Optional
 
-from amads.expectation.model import ExpectationModel, EnsembleModel
+from amads.expectation.models.base_model import EnsembleModel
 from amads.expectation.probability import ProbabilityDistribution
 from amads.expectation.predictions import Prediction, SequencePrediction
 from amads.expectation.tokenizer import Token
