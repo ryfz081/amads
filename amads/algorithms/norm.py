@@ -52,11 +52,19 @@ def normalize(
 
     Examples
     --------
-    >>> normalize([0, 1, 2, 3, 4], method="l1")
+    >>> toy_example = [0, 1, 2, 3, 4]
+    >>> normalize(toy_example, method="l1")
     array([0. , 0.1, 0.2, 0.3, 0.4])
 
-    >>> normalize([0, 1, 2, 3, 4], method="l2")
+    >>> normalize(toy_example, method="l2")
     array([0.        , 0.18257419, 0.36514837, 0.54772256, 0.73029674])
+
+    >>> normalize(toy_example, method="l2", round_output=True, round_places=3)
+    array([0.   , 0.183, 0.365, 0.548, 0.73 ])
+
+    >>> normalize(toy_example, method="max")
+    array([0.  , 0.25, 0.5 , 0.75, 1.  ])
+
     """
 
     if np.max(profile) == 0:
@@ -76,7 +84,7 @@ def normalize(
     norm_dist = profile / np.linalg.norm(profile, ord=norm_ord)
 
     if round_output:
-        return list(np.round(norm_dist, round_places))
+        return np.round(norm_dist, round_places)
     else:
         return norm_dist
 
@@ -101,12 +109,20 @@ def manhattan_distance(profile_1: list, profile_2: list) -> float:
     """
     The 'l1' aka 'Manhattan' distance between two points in N dimensional space.
 
-    List length check and normalization included.
+    List length check and normalization are included.
+
+    Examples
+    --------
+
+    >>> profile_1 = [0, 1, 2, 3, 4]
+    >>> profile_2 = [1, 2, 3, 4, 5]
+    >>> manhattan_distance(profile_1, profile_2)
+    0.2
     """
     shared_length(profile_1, profile_2)
     profile_1 = normalize(profile_1, "l1")
     profile_2 = normalize(profile_2, "l1")
-    return sum([abs(profile_1[n] - profile_2[n]) for n in range(len(profile_1))])
+    return float(sum([abs(profile_1[n] - profile_2[n]) for n in range(len(profile_1))]))
 
 
 def euclidean_distance(profile_1: list, profile_2: list) -> float:
@@ -116,13 +132,24 @@ def euclidean_distance(profile_1: list, profile_2: list) -> float:
     is given by the Pythagorean formula.
     normalize to a unit sphere in N-dimensional space
 
-    List length check and normalization included.
+    List length check and normalization are included.
+
+    Examples
+    --------
+
+    >>> profile_1 = [0, 1, 2, 3, 4]
+    >>> profile_2 = [1, 2, 3, 4, 5]
+    >>> euclidean_distance(profile_1, profile_2)
+    0.17474594224380802
+
     """
     shared_length(profile_1, profile_2)
     profile_1 = normalize(profile_1, "l2")
     profile_2 = normalize(profile_2, "l2")
-    return np.sqrt(
-        sum([(profile_1[n] - profile_2[n]) ** 2 for n in range(len(profile_1))])
+    return float(
+        np.sqrt(
+            sum([(profile_1[n] - profile_2[n]) ** 2 for n in range(len(profile_1))])
+        )
     )
 
 
