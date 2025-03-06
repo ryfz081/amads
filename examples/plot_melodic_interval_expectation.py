@@ -1,17 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-#This is hacky and should be fixed if/when package is properly installed
-import sys
-sys.path.append('./amads')
+
 
 from amads.algorithms import boundary
 from amads.io import partitura_midi_import, pianoroll
 from amads.music import example
-from amads.expectation.tokenizer import MelodyIntervalTokenizer
+from amads.expectation.tokenizer import MelodyIntervalTokenizer, IOITokenizer
 from amads.expectation.dataset import ScoreDataset
-from amads.expectation.model import MarkovModel, IDyOMModel
+from amads.expectation.model import MarkovModel, IDyOMModel, MarkovEnsemble
 from amads.expectation.metrics import NegativeLogLikelihood, Entropy
+from amads.core.basics import Score, Note
 import pickle
 
 # Get the path to the package's music directory-- to be fixed when sample datasets are properly included in the package
@@ -23,14 +22,15 @@ tokenizer = MelodyIntervalTokenizer()
 dataset = ScoreDataset(score_data, tokenizer)
 
 training_sequences = dataset[0:-10]
-test_sequence = dataset[-2]
+test_ix = -4
+test_sequence = dataset[test_ix]
 
 # Create and train both models: A simple Markov model and a more complex IDyOM model
-idyom = IDyOMModel(max_order=5, smoothing_factor=0.01)
+idyom = IDyOMModel(max_order=7, smoothing_factor=0.01, combination_strategy='ppm-b')#MarkovEnsemble(min_order=1, max_order=5, smoothing_factor=0.01, combination_strategy='entropy')#IDyOMModel(max_order=5, smoothing_factor=0.01)##
 markov = MarkovModel(order=5, smoothing_factor=0.01)
 
-idyom.train(training_sequences)
-markov.train(training_sequences)
+idyom.fit(training_sequences)
+markov.fit(training_sequences)
 
 # Get predictions for test sequence
 idyom_predictions = idyom.predict_sequence(test_sequence)
@@ -48,18 +48,22 @@ markov_nll = nll_metric.compute(markov_predictions, test_sequence[markov.order:]
 print(f"IDyOM average NLL {np.mean(idyom_nll):.2f}")
 print(f"Markov average NLL {np.mean(markov_nll):.2f}")
 
+# First plot: Piano roll of the melody
+test_score = dataset.get_score(test_ix)
+pianoroll(test_score, y_label="name", x_label="beat", color="skyblue", accidental="sharp")
+plt.title('Original Melody')
 
-# Create figure with two subplots
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 8), height_ratios=[2, 1])
+# Create new figure with two subplots for intervals and surprise values
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 8))
 
-# Top subplot: The actual sequence (intervals)
+# First subplot: The actual sequence (intervals)
 intervals = [token.value for token in test_sequence]
 ax1.plot(range(len(intervals)), intervals, 'k-', label='Melody intervals')
 ax1.set_ylabel('Interval size')
 ax1.grid(True)
 ax1.legend()
 
-# Bottom subplot: Surprise values using NLL metric
+# Second subplot: Surprise values using NLL metric
 # IDyOM predictions
 idyom_positions = range(1, len(idyom_predictions) + 1)
 idyom_nll = nll_metric.compute(idyom_predictions, test_sequence[1:])
