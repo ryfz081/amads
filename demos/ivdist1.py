@@ -12,7 +12,7 @@ myscore.show()
 print("------- Removing all but the first part")
 mono_score = myscore.emptycopy()
 first_part = next(myscore.find_all(Part))  # Get the first part
-first_part.copy_into(mono_score)
+first_part.copy(mono_score)
 print("------- finished removing all but the first part")
 mono_score.show()
 print("------- Calculate pitch-class distribution")

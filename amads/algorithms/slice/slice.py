@@ -24,8 +24,10 @@ class Slice(Sequence):
     def __init__(
         self,
         original_notes: List[Note],
-        delta: float = 0,
+        onset: float = 0,
         duration: float = 0,
     ):
-        super().__init__(parent=None, delta=delta, duration=duration)
+        super().__init__(
+            parent=None, onset=onset, duration=duration, content=[], pack=False
+        )
         self.original_notes = original_notes

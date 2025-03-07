@@ -10,20 +10,26 @@ Terminology and Structure
 
 - ``duration`` refers to ``offset - onset``
 
-- Scores are hierarchical, and rather than storing ``onset`` or
-  ``offset`` directly, we store onset time relative to the parent,
-  which also has an onset time. The relative onset is called
-  ``delta``, and the relative offset time relative to the parent
-  is called ``delta_offset``.  (Note that in contexts outside of
-  AMADS, "offset" is a synonym for "displacement" which is
+- Scores are hierarchical, but all nodes and leaves represent
+  ``onset`` directly in absolute beat or time (not relative to the
+  onset time of the parent). The end time is called ``offset`` and is
+  computed as onset + duration.  (Note that in contexts outside of
+  AMADS, "offset" is a synonym for "displacement," which is
   essentially a "delta" or "difference," so be careful not to be
   confused: "onset" is the beginning, "offset" is the ending!)
 
-It follows that to get the onset time, you form the sum of your
-``delta`` with the onset time of your parent, which recursively
-is the ``delta`` of the parent plus the onset of your grandparent,
-etc. The top of the hierarchy is a Score object, which has no
-``parent`` and whose ``onset`` is defined to be its ``delta``.
+The use of absolute onset times makes it relatively expensive to shift
+an object in time. E.g. to move a measure to a later time, you must
+shift not only the ``onset`` of the ``Measure`` but also all of the
+``Note``s and other objects in the ``Measure``. However, the most
+common reason to use a ``Measure`` or some other object at another
+time is to reuse the object in a different context, e.g. to copy a
+measure from one part to another part. Since all member objects have a
+reference to their parent, the copy must be a deep copy of the entire
+subtree. Given the cost of the deep copy, the cost of recomputing the
+``onset``s is negligible. In addition, using an absolute ``onset``
+simplifies a lot of code and makes access to the ``onset`` more
+efficient.
 
 The music representation hierarchy is constrained to match intuitive
 ideas about music structure. The levels of hierarchy are ``Score``,
@@ -32,17 +38,17 @@ ideas about music structure. The levels of hierarchy are ``Score``,
 a "flat" representation which is basically a list of ``Note``
 objects. More on this in the next section.
 
-The edge or leaf-nodes of the representation hierarchy include ``Note``
-and ``Rest`` classes. All of these inherit from an abstract superclass
-called Event, which is basically just``delta``, ``duration`` and
-``parent`` attributes. The ``Note`` subclass adds attributes for
-``pitch``, ``dynamic``, ``tie``, etc.
+The edge or leaf-nodes of the representation hierarchy include
+``Note`` and ``Rest`` classes. All of these inherit from an abstract
+superclass called Event, which is basically just ``onset``,
+``duration`` and ``parent`` attributes. The ``Note`` subclass adds
+attributes for ``pitch``, ``dynamic``, ``tie``, etc.
 
 Inner levels of hierarchy are represented by subclasses of
 ``EventGroup``, which is in turn an ``Event`` with an added attribute
-named ``content``, a list of children. E.g. a ``Measure`` is
-an ``EventGroup``. You might expect the duration of an ``EventGroup``
-to be implied by the content, but especially if Rests are removed, a
+named ``content``, a list of children. E.g. a ``Measure`` is an
+``EventGroup``. You might expect the duration of an ``EventGroup`` to
+be implied by the content, but especially if Rests are removed, a
 ``Measure`` has a duration that is independent of the content. An
 ``EventGroup`` duration is mainly relevant of you want to append nodes
 sequentially: The duration gives you the offset time, which becomes
@@ -60,32 +66,27 @@ and information corresponding to a Standard MIDI File tempo track, so
 AMADS can convert from quarters to seconds or seconds to quarters.
 
 To work in seconds, it is most efficient to convert the entire score
-to seconds, meaning that every ``delta`` and ``duration`` attribute is
+to seconds, meaning that every ``onset`` and ``duration`` attribute is
 converted in one pass through the score. Since the entire score stores
 in one unit or the other, there are no separate attributes such as
-``delta_seconds`` or ``duration_seconds``, and computed values such as
-``onset`` run identical computations whether the units are beats or
+``offset_seconds`` or ``duration_seconds``, and computed values such as
+``offset`` run identical computations whether the units are beats or
 seconds, so they return values in the same units as are stored in the
 score.
 
 Conversion to Seconds
 ~~~~~~~~~~~~~~~~~~~~~
 
-Conversion to seconds is slightly tricky due to the use of
-parent-relative delta instead of absolute times. Conversion is done
-in-place. This violates the immutable Score design (see next section)
-but note that if you convert back to beats, you can restore the
-original score, so changed are not *necessarily* visible even when
-scores are shared. To convert in place, work top-down recursively: at
-every level, we get the onset in beats (parent_onset_beat) and onset
-in seconds (parent_onset_time) of the parent. We cannot use
-self.parent.onset to compute self.onset because the parent will have
-been converted to seconds, so compute onset_beat as
-parent_onset_beat + self.delta. Convert onset_beat to seconds and store
-seconds - parent_onset_time into self.delta. For EventGroups, we
-use recursion where onset_beat becomes parent_onset_beat and the
-newly computed self.onset becomes parent_onset_time. Similar
-calculations are used to compute duration.
+Conversion to seconds is done in-place. This violates the immutable
+Score design (see next section) but note that if you convert back to
+beats, you can restore the original score, so changes are not
+*necessarily* visible even when scores are shared. Conversion involves
+using the score ``TimeMap`` to map between beats and seconds. The
+``TimeMap`` is stored as an array of breakpoints, so a lookup involves
+a search, but since most accesses are in time order, it is possible to
+cache the location of the previous lookup in case the next one is
+nearby. Thus, we can expect to make a single pass through the
+``TimeMap`` to convert each ``Staff`` and its children.
 
 
 Immutable Scores
@@ -225,8 +226,8 @@ Measured Scores
 ``.merge_tied_notes()``
     Convert the Score, Part, Staff or Measure to one without
     ties. Although not required, we expect ties to break notes where
-    they cross measure boundaries.  After ``.join_ties()``, notes may
-    cross one or more measure boundaries.
+    they cross measure boundaries.  After ``.merge_tied_notes()``,
+    notes may cross one or more measure boundaries.
 
 ``.remove_measures()``
     The ``.remove_measures()`` method "lifts" notes into the Staff
@@ -239,15 +240,18 @@ Measured Scores
     will be adjusted).
 
 ``.flatten()``
-    Convert a measured score into a flat score. Parts are preserved
-    or collapsed based on an optional parameter. Tied notes are 
-    always merged because ties can become ambiguous when hierarchy
-    is removed. Non-Note events are not retained in Part(s) because
-    they might only be relevant within the hierarchy of a measured
+    Convert a measured score into a flat score. Parts are preserved or
+    collapsed based on an optional parameter. Tied notes are always
+    merged because we assume ties are not useful in this
+    context. Non-Note events are not retained in Part(s) because they
+    might only be relevant within the hierarchy of a measured
     score. However, non-Note events can be inserted into a flat score.
 
 ``.collapse_parts()``
-    Merge the notes of selected Parts and Staffs into a flat score.
+    Merge the notes of selected Parts and Staffs into a flat score
+    with one Part. When called with not part or staff selection, all
+    notes are combined this is equivalent to
+    ``.flatten(collapse=True)``.
 
 Flattened Scores
 ~~~~~~~~~~~~~~~~

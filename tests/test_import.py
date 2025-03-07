@@ -44,11 +44,11 @@ def test_import_midi(midi_filename):
 
     pm_notes.sort(key=lambda x: (x.start, x.pitch))
 
-    quarter_note_duration = pm_notes[1].start / flattened_notes[1].delta
+    quarter_note_duration = pm_notes[1].start / flattened_notes[1].onset
 
     for score_note, pm_note in zip(flattened_notes, pm_notes):
         assert score_note.pitch.keynum == pm_note.pitch
-        assert score_note.delta == pytest.approx(pm_note.start / quarter_note_duration)
+        assert score_note.onset == pytest.approx(pm_note.start / quarter_note_duration)
         assert score_note.duration == pytest.approx(
             pm_note.end / quarter_note_duration - pm_note.start / quarter_note_duration
         )

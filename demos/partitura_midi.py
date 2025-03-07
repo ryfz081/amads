@@ -13,7 +13,7 @@ myscore.show()
 
 
 print("------- result of score copy")
-scorecopy = myscore.deepcopy()
+scorecopy = myscore.copy()
 scorecopy.show()
 
 

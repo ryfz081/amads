@@ -44,7 +44,7 @@ def skyline(score: Score, threshold: float = 0.1):
 
     score = score.merge_tied_notes()
     new_score = score.emptycopy()
-    skyline = Part(new_score)
+    skyline = Part(parent=new_score)
     notes = score.sorted_notes()
 
     # Algorithm: the basic idea is to scan notes and copy them
@@ -105,7 +105,7 @@ def skyline(score: Score, threshold: float = 0.1):
         # append the note to skyline
         print("Adding note ", end="")
         note.show()
-        note.deepcopy_into(skyline)
+        note.copy(skyline)
 
         # remove notes in skyline that are below the current note
 

@@ -187,15 +187,7 @@ def salami_slice(
                 timepoint.sounding_notes, slice_onset, slice_end - slice_onset
             )
 
-            notes = [
-                Note(
-                    parent=slice,
-                    delta=0,
-                    duration=slice_duration,
-                    pitch=pitch,
-                )
-                for pitch in pitches
-            ]
+            notes = [Note(slice, 0, slice_duration, pitch) for pitch in pitches]
 
             slices.append(slice)
 
