@@ -60,7 +60,7 @@ class Window(Slice):
 
         super().__init__(
             original_notes=[],
-            delta=onset,
+            onset=onset,
             duration=size,
         )
 
@@ -92,7 +92,7 @@ class Window(Slice):
 
             # We use deepcopy_into instead of creating a new Note because we want to
             # preserve any other attributes that might be useful in downstream tasks.
-            note = note.deepcopy_into(self)
+            note = note.copy(self)
             note.onset = max(note.onset, onset)
             note.offset = min(note.offset, offset)
 
