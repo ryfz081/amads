@@ -26,6 +26,12 @@ git clone https://github.com/music-computing/amads.git
 pip install -e amads
 ```
 
+If you want to contribute to the package yourself, you can specify dev/test dependencies as follows:
+
+```py
+pip install -e ".[dev,test]"
+```
+
 ## Design principles
 
 1. We opt to create one repository, in one langauge, rather than attempting to list / direct to others.
