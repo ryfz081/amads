@@ -47,7 +47,9 @@ def test_parent():
     part = score.content[0]
     assert isinstance(part, Part)
     assert part.part is None
+    assert part.parent == part.score == score
 
     note = part.content[0]
     assert isinstance(note, Note)
     assert note.part == part
+    assert note.score == score
