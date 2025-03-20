@@ -39,3 +39,15 @@ def test_copy_score():
     assert copied_part.parent == copied_score
 
     assert copied_part.parent != score
+
+
+def test_parent():
+    score = Score.from_melody(pitches=[60, 62, 64], durations=1.0)
+
+    part = score.content[0]
+    assert isinstance(part, Part)
+    assert part.part is None
+
+    note = part.content[0]
+    assert isinstance(note, Note)
+    assert note.part == part
