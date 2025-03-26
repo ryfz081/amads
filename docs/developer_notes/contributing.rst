@@ -81,7 +81,7 @@ For external contributors
    integrate. To merge the changes::
    
     git fetch origin
-    git checkout feature-name  --does nothing if it's your branch already
+    git checkout feature-name  # does nothing if it's your branch already
     git merge origin/main
 
 8  If there are conflicts, edit/fix the files with conflicts and::

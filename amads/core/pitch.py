@@ -37,6 +37,9 @@ class Pitch:
             MIDI key number, e.g. C4 = 60, generalized to float.
         alt : float
             Alteration, e.g. flat = -1.
+   
+    Properties
+    ----------
         name : int
             The name of the pitch, e.g. 0, 2, 4, 5, 7, 9, 11.
         name_str : str
@@ -54,6 +57,7 @@ class Pitch:
         lower_enharmonic : Pitch
             The lower enharmonic equivalent of the pitch.
     """
+    __slots__ = ["keynum", "alt"]
 
     def _fix_alteration(self) -> None:
         """Fix the alteration to ensure it is a valid value, i.e.
@@ -140,8 +144,8 @@ class Pitch:
 
 
     @property
-    def name(self) -> int:
-        """Retrieve the name of the pitch, e.g. 0, 2, 4, 5, 7, 9, 11,
+    def step(self) -> str:
+        """Retrieve the name of the pitch, e.g. A, B, C, D, E, F, G
         corresponding to letter names without accidentals.
 
         Returns
@@ -149,31 +153,35 @@ class Pitch:
         int
             The name of the pitch, e.g. 0, 2, 4, 5, 7, 9, 11.
         """
-        return (self.keynum - self.alt) % 12
+        unaltered = round(self.keynum - self.alt)
+        return ["C", "?", "D", "?", "E", "F", "?", "G", "?", "A", "?", "B"][
+                unaltered % 12]
 
 
     @property
-    def name_str(self) -> str:
-        """Return string name including accidentals (# or -) if alt is integral.
+    def name(self, flat_char: str = "b") -> str:
+        """Return string name including accidentals (# or b) if alt is integral.
+        Otherwise, return step name concatenated with "?".
+        
+        Parameters
+        ----------
+        flat_char : str, optional
+            The character to use for flat accidentals. (Defaults to "b")
 
         Returns
         -------
         str
             The string representation of the pitch name, including accidentals.
         """
-        unaltered = round(self.keynum - self.alt)
-        base = ["C", "?", "D", "?", "E", "F", "?", "G", "?", "A", "?", "B"][
-            unaltered % 12
-        ]
         accidentals = "?"
         if round(self.alt) == self.alt:  # an integer value
             if self.alt > 0:
                 accidentals = "#" * self.alt
             elif self.alt < 0:
-                accidentals = "b" * -self.alt
+                accidentals = flat_char * -self.alt
             else:
                 accidentals = ""  # natural
-        return base + accidentals
+        return self.step + accidentals
 
 
     @property
@@ -183,7 +191,7 @@ class Pitch:
         integer division of keynum by 12. The octave number is
         independent of enharmonics. E.g. C4 is enharmonic to B#3 and
         represent the same (more or less) pitch, but BOTH have an
-        octave of 4. On the other hand name_str() will return "C4"
+        octave of 4. On the other hand name() will return "C4"
         and "B#3", respectively.
 
         Returns
@@ -193,7 +201,7 @@ class Pitch:
         """
         unaltered = round(self.keynum - self.alt)
         octave = (unaltered // 12) - 1
-        return self.name_str + str(octave)
+        return self.name + str(octave)
 
 
     @property
@@ -227,7 +235,7 @@ class Pitch:
     def octave(self) -> int:
         """Returns the octave number based on keynum. E.g. C4 is enharmonic
         to B#3 and represent the same (more or less) pitch, but BOTH have an
-        octave of 4. On the other hand name_str() will return "C4" and "B#3",
+        octave of 4. On the other hand name() will return "C4" and "B#3",
         respectively.
         """
         return floor(self.keynum) // 12 - 1

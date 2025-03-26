@@ -328,7 +328,7 @@ def partitura_convert_part(ppart, score):
                     if pt_note.tie_prev:
                         # patch the previous note
                         pt_note = pt_note.tie_prev
-                        pt_note_to_note[pt_note][1].tied = note
+                        pt_note_to_note[pt_note][1].tie = note
         elif event[0] == "Rest":
             Rest(parent=measure, onset=measure.onset, duration=event[2])
         else:

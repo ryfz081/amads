@@ -90,8 +90,6 @@ def skyline(score: Score, threshold: float = 0.1):
 
     for i in range(len(notes)):
         note = notes[i]
-        print("Processing note ", end="")
-        note.show()
         # ignore notes that are below another existing note in skyline
         if any(
             note.pitch.keynum < prev.pitch.keynum

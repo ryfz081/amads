@@ -65,8 +65,6 @@ class Window(Slice):
         )
 
         self.time = time
-        # TODO: it seems wrong to store size here and also in self.duration -RBD
-        self.size = size
         self.align = align
 
         candidate_notes = list(candidate_notes)
@@ -92,7 +90,7 @@ class Window(Slice):
 
             # We use deepcopy_into instead of creating a new Note because we want to
             # preserve any other attributes that might be useful in downstream tasks.
-            note = note.copy(self)
+            note = note.copy(parent=self)
             note.onset = max(note.onset, onset)
             note.offset = min(note.offset, offset)
 
@@ -116,7 +114,7 @@ def sliding_window(
     passage : Score or Iterable[Note]
         The musical passage to be windowed
     size : float
-        The size of each window (time units)
+        The size (duration) of each window (time units)
     step : float, default=1.0
         The step size to take between windows (time units).
         For example, if step is 0.1, then a given slice will start 0.1 time units

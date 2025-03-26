@@ -1,9 +1,9 @@
 from typing import List
 
-from ...core.basics import Note, Sequence
+from ...core.basics import Concurrence, Note
 
 
-class Slice(Sequence):
+class Slice(Concurrence):
     """A slice of a musical score between two timepoints.
 
     This is the base class for different slicing algorithms like salami slicing and
@@ -15,7 +15,7 @@ class Slice(Sequence):
     ----------
     original_notes : List[Note]
         The original unmodified notes from which the slice notes were derived
-    delta : float
+    onset : float
         The start time offset of the slice
     duration : float
         The duration of the slice
@@ -27,7 +27,5 @@ class Slice(Sequence):
         onset: float = 0,
         duration: float = 0,
     ):
-        super().__init__(
-            parent=None, onset=onset, duration=duration, content=[], pack=False
-        )
+        super().__init__(parent=None, onset=onset, duration=duration, content=[])
         self.original_notes = original_notes

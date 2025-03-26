@@ -82,6 +82,7 @@ def pianoroll(
     max_time = 1  # plot at least 1 second or beat
     # remove ties and make a sorted list of all notes:
     score = score.flatten(collapse=True)
+    # now score has one part that is all notes
     for note in next(score.find_all(Part)).content:
         onset_time = note.onset
         offset_time = note.offset
