@@ -74,6 +74,57 @@ class Event:
             parent.insert(self)
 
 
+    def set(self, property, value):
+        """Set a property on this Event. Every event can be extended
+        with additional properties.
+
+        Parameters
+        ----------
+        property : str
+            The name of the property to set.
+        value : Any
+            The value to assign to the property.
+        """
+        if self.info is None:
+            self.info = {}
+        self.info[property] = value
+
+
+    def get(self, property, default=None):
+        """Get the value of a property from this Event.
+
+        Parameters
+        ----------
+        property : str
+            The name of the property to get.
+        default : Any, optional
+            The default value to return if the property is not found.
+            (Defaults to None)
+
+        Returns
+        -------
+        Any
+            The value of the specified property.
+        """
+        return self.info.get(property, default)
+    
+
+    def has(self, property) -> bool:
+        """Check if the Event has a specific property.
+
+        Parameters
+        ----------
+        property : str
+            The name of the property to check.
+
+        Returns
+        -------
+        bool
+            True if the property exists, False otherwise.
+        """
+        return property in self.info
+
+
     def copy(self, parent: Optional["EventGroup"] = None) -> "Event":
         """Return a deep copy of the Event instance except for the parent,
        which may be provided as an argument. See also copyempty to copy
