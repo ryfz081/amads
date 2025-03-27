@@ -9,7 +9,7 @@ GitHub contribution workflow
 You should have a local clone of AMADS from Github installed. These
 instructions will continue from that starting point.
 
-0. (Un)Install the package
+1. (Un)Install the package
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To work on AMADS, you should be using the package represented by your
@@ -27,24 +27,25 @@ This pip command will tell Python to use the local repo, so that
 any changes to the code will be incorporated into the package whenever
 you restart Python (e.g. start the next debugging session).
 
-0. Use pre-commit
-~~~~~~~~~~~~~~~~~
-1. Install pre-commit hooks::
 
-   pip install pre-commit && pre-commit install
+2. Use pre-commit
+~~~~~~~~~~~~~~~~~
+1. Install pre-commit hooks:
+
+    pip install pre-commit && pre-commit install
    
 2. Run pre-commit::
 
-   pre-commit run --all-files
+    pre-commit run --all-files
 
 (You only need to do this once after you have installed pre-commit.)
 
 
-1. Submit a pull request
-~~~~~~~~~~~~~~~~~~~~~~~
+3. Submit a pull request
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-For team members
-^^^^^^^^^^^^^^^
+A. For team members
+^^^^^^^^^^^^^^^^^^^
 
 1. Create a new branch from main::
 
@@ -58,8 +59,8 @@ For team members
 
 5. Open a pull request from your branch to main
 
-For external contributors
-^^^^^^^^^^^^^^^^^^^^^^^
+B. For external contributors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 1. Fork the repository to your GitHub account
 2. Clone your fork::
@@ -77,12 +78,12 @@ For external contributors
 
 6. Open a pull request from your fork to our main branch
 
-7. Before you push, there might be new changes in the repo to
+7. **Before you push**, there might be new changes in the repo to
    integrate. To merge the changes::
    
     git fetch origin
     git checkout feature-name  # does nothing if it's your branch already
-    git merge origin/main
+    git merge origin/feature-name
 
 8  If there are conflicts, edit/fix the files with conflicts and::
 
@@ -94,20 +95,20 @@ For external contributors
 
 10. Push to your fork (again)::
 
-    git push origin feature-name
+     git push origin feature-name
 
 
 
-2. Continuous Integration
-~~~~~~~~~~~~~~~~~~~~~~~
+4. Continuous Integration
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All pull requests must pass our automated test suite in the CI pipeline before they can be merged. This ensures code quality and prevents regressions.
 
 One of the tests will run the code coverage tool, which will report on the percentage of code that is covered by tests.
 If you see that the coverage is low, please add tests for the code you are changing.
 
-3. Code Review
-~~~~~~~~~~~~~
+5. Code Review
+~~~~~~~~~~~~~~
 
 A project maintainer will review your code. They may request changes or clarification. This helps maintain code quality and consistency.
 
@@ -123,8 +124,8 @@ They are the one who should resolve the comment once they are satisfied.
 Once you have finished responding to all the comments, you can re-request review by clicking the "Re-request review" button
 in the GitHub UI.
 
-4. Merging
-~~~~~~~~~
+6. Merging
+~~~~~~~~~~
 
 Once your pull request passes CI and receives approval from a reviewer, it can be merged into the main codebase.
 You as author can merge it yourself, or you can ask a reviewer to merge it for you.
