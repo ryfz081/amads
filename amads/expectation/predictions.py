@@ -9,6 +9,7 @@ class Prediction:
     """
     def __init__(self, prediction: ProbabilityDistribution, observation: Optional[Token] = None):
         self.prediction = prediction
+        self.distribution = prediction #For backward compatibility
         self.observation = observation
         
         # Initialize metric calculators

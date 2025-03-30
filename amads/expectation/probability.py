@@ -9,6 +9,14 @@ class ProbabilityDistribution:
     def __getitem__(self, token: Token) -> float:
         return self.distribution[token]
 
+    def __len__(self):
+        """Return the number of possible outcomes in the distribution."""
+        return len(self.distribution)
+
+    def items(self):
+        """Returns a view of the distribution's (token, probability) pairs."""
+        return self.distribution.items()
+
     def entropy(self) -> float:
         """Calculate Shannon entropy E(X) of the probability distribution."""
         entropy = 0
