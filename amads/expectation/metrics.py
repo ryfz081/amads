@@ -7,27 +7,35 @@ class PredictionMetric:
     """Base class for all prediction-based metrics"""
     
     def compute(self, distribution: Union[ProbabilityDistribution, List[ProbabilityDistribution]], 
-                token: Union[Token, List[Token]]) -> Union[float, List[float]]:
+                token: Union[Token, List[Token], None] = None) -> Union[float, List[float]]:
         """
         Compute metric for token(s) given distribution(s).
         
         Args:
             distribution: Single distribution or list of distributions
-            token: Single token or list of tokens
+            token: Single token, list of tokens, or None (for metrics that don't need tokens)
             
         Returns:
-            float if single token, List[float] if multiple tokens
+            float if single token/distribution, List[float] if multiple distributions
         """
+        # Handle the case where the metric doesn't require tokens (like Entropy)
+        if token is None:
+            if isinstance(distribution, list):
+                return [self._compute_single(d, None) for d in distribution]
+            return self._compute_single(distribution, None)
+        
+        # Handle single token case
         if isinstance(token, Token):
             return self._compute_single(distribution, token)
         
+        # Handle list of tokens case
         if len(distribution) != len(token):
             raise ValueError("Must have same number of distributions and tokens")
         return [self._compute_single(d, t) 
                for d, t in zip(distribution, token)]
     
     def _compute_single(self, distribution: ProbabilityDistribution, 
-                       token: Token) -> float:
+                       token: Optional[Token] = None) -> float:
         """Compute metric for a single token"""
         raise NotImplementedError
 
