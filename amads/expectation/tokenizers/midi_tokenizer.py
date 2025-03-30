@@ -3,43 +3,70 @@ Tokenization schemes for MIDI data in the AMADS library using miditok implementa
 """
 
 from typing import List, Optional, Dict, Any, Union
+from pathlib import Path
 from amads.core.basics import Score, Note, Part
-from amads.expectation.tokenizer import Token, Tokenizer
 from amads.utils import check_python_package_installed
+from amads.expectation.tokenizers.base_tokenizer import Token, Tokenizer
+from amads.expectation.tokenizers.midi_tokenizer_utils import preprocess_score, load_score
+import warnings
 
 
 class MIDITokenizer(Tokenizer):
     """Base class for all MIDI tokenization schemes."""
     
-    def tokenize(self, score: Score) -> List[Token]:
-        """Convert a Score object into a sequence of Tokens.
+    def tokenize(self, input_data: Union[str, 'symusic.Score']) -> List[Token]:
+        """Convert a MIDI file or symusic Score into a sequence of Tokens with preserved timing.
 
         Parameters
         ----------
-        score : Score
-            The musical score to tokenize
+        input_data : Union[str, 'symusic.Score']
+            Path to a MIDI file or a preprocessed symusic Score object
 
         Returns
         -------
         List[Token]
-            Sequence of tokens representing the score
+            Sequence of tokens representing the score with accurate timing
         """
-        raise NotImplementedError
+        import symusic
+        
+        # Handle symusic Score objects (already preprocessed in dataset.py)
+        if isinstance(input_data, symusic.Score):
+            symusic_score = input_data
+        # Handle MIDI file paths
+        elif isinstance(input_data, str) and input_data.endswith(('.mid', '.midi')):
+            # Process the MIDI file to get a symusic score with timing
+            symusic_score = self._process_midi_file(input_data)
+        else:
+            raise ValueError(f"Expected path to a MIDI file (.mid or .midi) or a symusic.Score object, got {type(input_data)}")
+        
+        # Get raw tokens from the tokenizer
+        raw_tokens = self._encode_tokens(symusic_score)
+        # Add timing information using the preprocessed score
+        return self._add_timing(raw_tokens, symusic_score)
     
     def decode(self, tokens: List[Token]) -> Optional[Score]:
-        """Convert tokens back to a Score. Optional method.
-
+        """Convert tokens back to a Score.
+        
+        Note: This is not fully implemented and will not preserve absolute timing information.
+        
         Parameters
         ----------
         tokens : List[Token]
             Sequence of tokens to decode
-
+        
         Returns
         -------
         Optional[Score]
-            The reconstructed musical score, if decoding is supported
+            The reconstructed musical score, without precise timing information
         """
-        return None
+        warnings.warn("Decoding from tokens to Score does not preserve absolute timing information")
+        miditok_tokens = [t.value for t in tokens]
+        try:
+            midi_data = self._tokenizer.tokens_to_midi(miditok_tokens)
+            return midi_to_score(midi_data)
+        except:
+            warnings.warn("Failed to decode tokens to Score")
+            return None
 
 def score_to_symusic(score: Score) -> 'symusic.Score':
     """Convert our Score format to symusic Score format directly.
@@ -88,185 +115,239 @@ def score_to_symusic(score: Score) -> 'symusic.Score':
 class SymusicTokenizer(MIDITokenizer):
     """Base class for tokenizers that use symusic/miditok implementations."""
     
-    def __init__(self, tokenizer_class: str, **params):
+    def __init__(self, 
+                 tokenizer_class: str, 
+                 use_bpe: bool = False,
+                 vocab_size: int = 1000,  # Only used if use_bpe=True
+                 **params):
         """Initialize the tokenizer.
         
         Parameters
         ----------
         tokenizer_class : str
             Name of the miditok tokenizer class to use ('REMI', 'TSD', or 'MIDILike')
+        use_bpe : bool, optional
+            Whether to use BPE training for the vocabulary, by default False
+        vocab_size : int, optional
+            Target vocabulary size when using BPE, by default 1000
         params : dict
             Additional parameters to pass to TokenizerConfig
         """
         check_python_package_installed('miditok')
         from miditok import REMI, TSD, MIDILike, TokenizerConfig
         
-        tokenizer_map = {
+        self.tokenizer_class = tokenizer_class
+        self.params = params
+        self.use_bpe = use_bpe
+        self.vocab_size = vocab_size
+        
+        self.tokenizer_map = {
             'REMI': REMI,
             'TSD': TSD,
             'MIDILike': MIDILike
         }
         
-        if tokenizer_class not in tokenizer_map:
-            raise ValueError(f"Unknown tokenizer class: {tokenizer_class}. Must be one of {list(tokenizer_map.keys())}")
-            
-        config = TokenizerConfig(use_tempos=True, **params)
-        self._tokenizer = tokenizer_map[tokenizer_class](config)
-
-    def _convert_to_symusic(self, input_data: Union[Score, str, 'symusic.Score']) -> 'symusic.Score':
-        """Convert various input types to symusic Score format."""
-        check_python_package_installed('symusic')
-        import symusic
+        if tokenizer_class not in self.tokenizer_map:
+            raise ValueError(f"Unknown tokenizer class: {tokenizer_class}. Must be one of {list(self.tokenizer_map.keys())}")
         
-        if isinstance(input_data, Score):
-            return score_to_symusic(input_data)
-        elif isinstance(input_data, str):
-            return symusic.Score(input_data)
-        elif isinstance(input_data, symusic.Score):
-            return input_data
-        else:
-            raise TypeError(f"Expected Score, path to MIDI file, or symusic.Score, got {type(input_data)}")
+        # Initialize a basic tokenizer without BPE training
+        config = TokenizerConfig(
+            use_tempos=True,
+            use_bpe=False,  # Always start without BPE
+            beat_res={(0,2):50},
+            **self.params
+        )
+        self._tokenizer = self.tokenizer_map[self.tokenizer_class](config)
+        
+        # Warn if BPE was requested since it's not implemented
+        if self.use_bpe:
+            warnings.warn("BPE training is not yet implemented. Using default vocabulary.", UserWarning)
+
+            # When implemented, this would look like:
+            # self._tokenizer.train(
+            #     vocab_size=self.vocab_size,
+            #     model="BPE",
+            #     files_paths=corpus_paths
+            # )
+
+    def _process_midi_file(self, midi_path: str) -> 'symusic.Score':
+        """Process a MIDI file to create a symusic Score with absolute timing.
+        
+        Parameters
+        ----------
+        midi_path : str
+            Path to the MIDI file
+            
+        Returns
+        -------
+        symusic.Score
+            Preprocessed symusic Score with preserved timing
+        """
+        # Load the score while preserving absolute time information
+        symusic_score = load_score(midi_path)
+        # Apply preprocessing to handle note overlaps, short notes, etc.
+        return preprocess_score(symusic_score)
 
     def _encode_tokens(self, symusic_score: 'symusic.Score') -> List[Any]:
         """Get raw tokens from the tokenizer."""
         return self._tokenizer.encode(symusic_score)[0]
 
-    def _add_timing(self, raw_tokens: List[Any]) -> List[Token]:
+    def _add_timing(self, raw_tokens: List[Any], symusic_score: 'symusic.Score') -> List[Token]:
         """Add timing information to tokens.
         
-        This method needs to be implemented by specific tokenizer classes to add
-        appropriate timing information based on their token format.
+        This method maps the token to the appropriate note/event in the symusic score
+        to get accurate timing information.
         
         Args:
             raw_tokens: List of raw token values from the tokenizer
+            symusic_score: The preprocessed symusic score with preserved timing
             
         Returns:
             List of Token objects with timing information added where appropriate
         """
+        # Create a lookup between tokens and their corresponding time in the symusic score
+        # To be implemented by subclasses for token-specific mapping
         raise NotImplementedError("_add_timing must be implemented by subclasses")
 
-    def tokenize(self, input_data: Union[Score, str, 'symusic.Score']) -> List[Token]:
-        """Convert input into a sequence of Tokens."""
-        symusic_score = self._convert_to_symusic(input_data)
-        raw_tokens = self._encode_tokens(symusic_score)
-        return self._add_timing(raw_tokens)
-
-    def decode(self, tokens: List[Token]) -> Score:
-        """Convert tokens back to a Score."""
-        miditok_tokens = [t.value for t in tokens]
-        midi_data = self._tokenizer.tokens_to_midi(miditok_tokens)
-        return midi_to_score(midi_data)
+    def train_on_corpus(self, corpus_paths: List[Union[str, Path]]) -> None:
+        """Train the tokenizer on a corpus of MIDI files.
+        
+        This is a compatibility method for ScoreDataset.
+        
+        Parameters
+        ----------
+        corpus_paths : List[Union[str, Path]]
+            List of paths to MIDI files
+        """
+        if self.use_bpe:
+            warnings.warn("BPE training is not yet implemented. Using default vocabulary.", UserWarning)
 
 class REMITokenizer(SymusicTokenizer):
     """REMI tokenizer using miditok's implementation."""
     
-    def __init__(self, **params):
-        super().__init__('REMI', **params)
+    def __init__(self, use_bpe: bool = False, vocab_size: int = 1000, **params):
+        super().__init__('REMI', use_bpe=use_bpe, vocab_size=vocab_size, **params)
 
-    def _add_timing(self, raw_tokens: List[Any]) -> List[Token]:
-        """Add REMI-specific timing to tokens."""
+    def _add_timing(self, raw_tokens: List[Any], symusic_score: 'symusic.Score') -> List[Token]:
+        """Add timing to REMI tokens using direct symusic note information."""
         tokens = []
-        current_time = None  # Start as None until we see first Position
-        current_tempo = 120.0  # Default tempo in BPM
         vocab = {v: k for k, v in self._tokenizer.vocab.items()}
         
-        for tok in raw_tokens:
+        # Get notes from symusic_score for direct time reference
+        notes = sorted(symusic_score.tracks[0].notes, key=lambda x: x.time)
+        current_note_idx = 0
+        current_time = 0  # in milliseconds
+        
+        # In REMI, Pitch tokens follow a Bar or Position token
+        # Use note timing directly from the preprocessed symusic score
+        for i, tok in enumerate(raw_tokens):
             token_str = vocab.get(tok, str(tok))
             
-            try:
-                if token_str.startswith('Position_'):
-                    position = int(token_str.split('_')[1])
-                    current_time = position * (60.0 / current_tempo)
-                elif token_str.startswith('Tempo_'):
-                    current_tempo = float(token_str.split('_')[1])
-            except Exception as e:
-                pass
-            
-            # Only assign timing to Position and Pitch tokens
-            if current_time is not None and (
-                token_str.startswith('Position_') or 
-                token_str.startswith('Pitch_')
-            ):
-                tokens.append(Token(value=tok, start_time=current_time))
+            if token_str.startswith('Pitch_'):
+                # For Pitch tokens, use the current note's start time (already in milliseconds)
+                if current_note_idx < len(notes):
+                    current_time = notes[current_note_idx].time
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0))  # Convert ms to seconds
+                    current_note_idx += 1
+                else:
+                    # If we've run out of notes, just use the last known time
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0))
+            elif token_str.startswith('Position_'):
+                # Position tokens also get timing
+                if current_note_idx < len(notes):
+                    current_time = notes[current_note_idx].time
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0))
+                else:
+                    tokens.append(Token(value=tok))
             else:
+                # Other tokens don't get timing
                 tokens.append(Token(value=tok))
                 
         return tokens
+
 
 class TSDTokenizer(SymusicTokenizer):
     """Time-Shift-Duration (TSD) tokenizer using miditok's implementation."""
     
-    def __init__(self, **params):
-        super().__init__('TSD', **params)
+    def __init__(self, use_bpe: bool = False, vocab_size: int = 1000, **params):
+        super().__init__('TSD', use_bpe=use_bpe, vocab_size=vocab_size, **params)
     
-    def _add_timing(self, raw_tokens: List[Any]) -> List[Token]:
-        """Add TSD-specific timing to tokens."""
+    def _add_timing(self, raw_tokens: List[Any], symusic_score: 'symusic.Score') -> List[Token]:
+        """Add timing to TSD tokens using direct symusic note information."""
         tokens = []
-        current_time = 0.0  # Start at zero
-        current_tempo = 120.0  # Default tempo in BPM
         vocab = {v: k for k, v in self._tokenizer.vocab.items()}
         
-        for tok in raw_tokens:
+        # Get notes from symusic_score for direct time reference
+        notes = sorted(symusic_score.tracks[0].notes, key=lambda x: x.time)
+        current_note_idx = 0
+        
+        # In TSD, note events are represented by NoteOn tokens followed by a pitch
+        for i, tok in enumerate(raw_tokens):
             token_str = vocab.get(tok, str(tok))
             
-            try:
-                if token_str.startswith('TimeShift_'):
-                    # Format is (num_beats, num_samples, resolution) -- source: https://miditok.readthedocs.io/en/latest/configuration.html
-                    # e.g., 2.3.8 means 2 + 3/8 beats
-                    parts = token_str.split('_')[1].split('.')
-                    if len(parts) == 3:
-                        num_beats = int(parts[0])
-                        num_samples = int(parts[1])
-                        resolution = int(parts[2])
-                        shift = num_beats + (num_samples / resolution)
-                        time_delta = shift * (60.0 / current_tempo)
-                        current_time += time_delta
-                elif token_str.startswith('Tempo_'):
-                    current_tempo = float(token_str.split('_')[1])
-            except Exception as e:
-                pass
-            
             if token_str.startswith('Pitch_'):
-                tokens.append(Token(value=tok, start_time=current_time))
+                # For Pitch tokens, use the current note's start time (already in milliseconds)
+                if current_note_idx < len(notes):
+                    # Convert milliseconds to seconds for the timing
+                    time_seconds = notes[current_note_idx].time / 1000.0
+                    tokens.append(Token(value=tok, start_time=time_seconds))
+                    current_note_idx += 1
+                else:
+                    tokens.append(Token(value=tok))
             else:
+                # Other tokens don't get timing
                 tokens.append(Token(value=tok))
                 
         return tokens
 
+
 class MIDILikeTokenizer(SymusicTokenizer):
     """MIDI-Like tokenizer using miditok's implementation."""
     
-    def __init__(self, **params):
-        super().__init__('MIDILike', **params)
+    def __init__(self, use_bpe: bool = False, vocab_size: int = 1000, **params):
+        super().__init__('MIDILike', use_bpe=use_bpe, vocab_size=vocab_size, **params)
     
-    def _add_timing(self, raw_tokens: List[Any]) -> List[Token]:
-        """Add MIDI-Like specific timing to tokens."""
+    def _add_timing(self, raw_tokens: List[Any], symusic_score: 'symusic.Score') -> List[Token]:
+        """Add timing to MIDI-Like tokens using direct symusic note information."""
         tokens = []
-        current_time = 0.0  # Start at zero
-        current_tempo = 120.0  # Default tempo in BPM
         vocab = {v: k for k, v in self._tokenizer.vocab.items()}
         
-        for tok in raw_tokens:
+        # Get notes from symusic_score for direct time reference
+        notes = sorted(symusic_score.tracks[0].notes, key=lambda x: x.time)
+        current_note_idx = 0
+        
+        # In MIDI-Like, NoteOn tokens correspond directly to notes
+        for i, tok in enumerate(raw_tokens):
             token_str = vocab.get(tok, str(tok))
             
-            try:
-                if token_str.startswith('TimeShift_'):
-                    parts = token_str.split('_')[1].split('.')
-                    if len(parts) == 3:
-                        num_beats = int(parts[0])
-                        num_samples = int(parts[1])
-                        resolution = int(parts[2])
-                        shift = num_beats + (num_samples / resolution)
-                        time_delta = shift * (60.0 / current_tempo)
-                        current_time += time_delta
-                elif token_str.startswith('Tempo_'):
-                    current_tempo = float(token_str.split('_')[1])
-            except Exception as e:
-                pass
-            
             if token_str.startswith('NoteOn_'):
-                tokens.append(Token(value=tok, start_time=current_time))
+                # For NoteOn tokens, use the current note's start time (already in milliseconds)
+                if current_note_idx < len(notes):
+                    # Convert milliseconds to seconds for the timing
+                    time_seconds = notes[current_note_idx].time / 1000.0
+                    tokens.append(Token(value=tok, start_time=time_seconds))
+                    current_note_idx += 1
+                else:
+                    tokens.append(Token(value=tok))
             else:
+                # Other tokens don't get timing
                 tokens.append(Token(value=tok))
                 
         return tokens
+
+def midi_to_score(midi_data) -> Score:
+    """Convert MIDI data to our Score format.
+    
+    Parameters
+    ----------
+    midi_data : bytes or BytesIO
+        Raw MIDI data
+        
+    Returns
+    -------
+    Score
+        Score object in our internal representation
+    """
+    # This is a placeholder - you'll need to implement the conversion
+    # from MIDI bytes to your Score format
+    raise NotImplementedError("Decoding from tokens to Score not yet implemented")
