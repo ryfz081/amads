@@ -67,10 +67,10 @@
 
 
 # Re-export specific tokenizers
-from .tokenizers.base_tokenizer import Token, Tokenizer
-from .tokenizers.melody_tokenizer import MelodyIntervalTokenizer, IOITokenizer
-from .tokenizers.midi_tokenizer import MIDITokenizer, TSDTokenizer, REMITokenizer, MIDILikeTokenizer
-from .tokenizers.audio_tokenizer import AudioTokenizer  # When implemented
+from amads.expectation.tokenizers.base_tokenizer import Token, Tokenizer
+from amads.expectation.tokenizers.melody_tokenizer import MelodyIntervalTokenizer, IOITokenizer
+from amads.expectation.tokenizers.midi_tokenizer import MIDITokenizer, TSDTokenizer, REMITokenizer, MIDILikeTokenizer, SymusicTokenizer
+from amads.expectation.tokenizers.audio_tokenizer import AudioTokenizer, WavTokenizerAudio  # When implemented
 
 # Define what should be available when someone does "from tokenizer import *"
 __all__ = [
@@ -85,6 +85,8 @@ __all__ = [
     'TSDTokenizer',
     'REMITokenizer',
     'MIDILikeTokenizer',
+    'SymusicTokenizer',
     # Audio tokenizers
     'AudioTokenizer',
+    'WavTokenizerAudio'
 ]
