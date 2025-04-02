@@ -59,7 +59,7 @@ class Event:
     """
     __slots__ = ["parent", "_onset", "duration", "info"]
 
-    def __init__(self, parent: Optional["EventGroup"], 
+    def __init__(self, parent: Optional["EventGroup"],
                  onset: float, duration: float):
         """
         Initialize an Event instance.
@@ -107,7 +107,7 @@ class Event:
             The value of the specified property.
         """
         return self.info.get(property, default)
-    
+
 
     def has(self, property) -> bool:
         """Check if the Event has a specific property.
@@ -126,9 +126,10 @@ class Event:
 
 
     def copy(self, parent: Optional["EventGroup"] = None) -> "Event":
-        """Return a deep copy of the Event instance except for the parent,
-       which may be provided as an argument. See also copyempty to copy
-       an EventGroup without the content.
+        """
+        Return a deep copy of the Event instance except for the parent,
+        which may be provided as an argument. See also copyempty to copy
+        an EventGroup without the content.
 
         Returns
         -------
@@ -180,7 +181,7 @@ class Event:
             True if the event's times in seconds and there is a parent.
         """
         return self.parent.units_are_seconds if self.parent else False
-    
+
 
     @property
     def units_are_quarters(self) -> bool:
@@ -227,6 +228,7 @@ class Event:
     @property
     def offset(self) -> float:
         """Retrieve the global offset (stop) time.
+
         Returns
         -------
         float
@@ -250,6 +252,7 @@ class Event:
     @property
     def part(self) -> Optional["Part"]:
         """Retrieve the Part containing this event
+
         Returns
         -------
         Optional[Part]
@@ -263,6 +266,7 @@ class Event:
     @property
     def score(self) -> Optional["Score"]:
         """Retrieve the Score containing this event
+
         Returns
         -------
         Optional[Score]
@@ -276,6 +280,7 @@ class Event:
     @property
     def staff(self) -> Optional["Staff"]:
         """Retrieve the Staff containing this event
+
         Returns
         -------
         Optional[Staff]
@@ -313,7 +318,7 @@ class Rest(Event):
     """
     __slots__ = []
 
-    def __init__(self, parent: Optional["EventGroup"] = None, 
+    def __init__(self, parent: Optional["EventGroup"] = None,
                  onset: Optional[float] = None, duration: float = 1):
         super().__init__(parent, onset, duration)
 
@@ -422,7 +427,7 @@ class Note(Event):
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
-        
+
 
     def __deepcopy__(self, memo):
         """Return a deep copy of the Note instance. The pitch is
@@ -457,11 +462,11 @@ class Note(Event):
                     if slot == "pitch":
                         result.pitch = self.pitch
                     else:
-                        setattr(result, slot, 
+                        setattr(result, slot,
                                 copy.deepcopy(getattr(self, slot), memo))
 
         return result
-    
+
     @property
     def tied_duration(self) -> float:
         """Retrieve the duration of the note in quarters or seconds.
@@ -800,7 +805,7 @@ class EventGroup(Event):
         onset : float
             The onset (start) time.
         duration : float
-            The duration in quarters or seconds. 
+            The duration in quarters or seconds.
         content : Optional[list]
             A list of Event objects to be added to the group. The parent
             of each Event is set to this EventGroup, and it is an error
@@ -920,7 +925,7 @@ class EventGroup(Event):
         copy of Score with notes moved from each chord to its parent (a Measure
         or a Part). The new_parent parameter is primarily for internal use when
         expand_chords is called recursively on score content.
-    
+
         Parameters
         ----------
         new_parent : EventGroup, optional
@@ -942,7 +947,7 @@ class EventGroup(Event):
             else:
                 item.copy(group)  # deep copy non-EventGroup
         return group
-    
+
 
     def find_all(self, elem_type: Type[Event]) -> Generator[Event, None, None]:
         """Find all instances of a specific type within the EventGroup.
@@ -1042,7 +1047,7 @@ class EventGroup(Event):
 
 
     def inherit_duration(self) -> "EventGroup":
-        """Set the duration of this EventGroup according to the 
+        """Set the duration of this EventGroup according to the
         maximum offset (end) time of its children. If the EventGroup
         is empty, the duration is set to 0. This method modifies the
         EventGroup instance.
@@ -1057,7 +1062,7 @@ class EventGroup(Event):
         for elem in self.content:
             max_offset = max(max_offset, elem.offset)
         self.duration = max_offset - onset
-        
+
         return self
 
 
@@ -1092,7 +1097,7 @@ class EventGroup(Event):
             self.content.append(event)
         event.parent = self
         return self
-    
+
 
     def last(self) -> Optional[Event]:
         """Retrieve the last event in the content list.
@@ -1124,7 +1129,7 @@ class EventGroup(Event):
         return list(self.find_all(elem_type))
 
 
-    def merge_tied_notes(self, parent: Optional["EventGroup"] = None, 
+    def merge_tied_notes(self, parent: Optional["EventGroup"] = None,
                          ignore: list[Note] = []) -> "EventGroup":
         """Create a new EventGroup with tied note sequences replaced by
         equivalent notes in each staff. Insert the new EventGroup into parent.
@@ -1154,9 +1159,9 @@ class EventGroup(Event):
                         ignore.append(tied_note)
                         event_copy = event.copy(group)  # copy note into group
                         event.tie = tied_note  # restore original event
-                        # this is subtle: event.tied_duration (a property) will sum 
+                        # this is subtle: event.tied_duration (a property) will sum
                         # up durations of all the tied notes. Since event_copy
-                        # is not tied, the sum of durations is stored on that 
+                        # is not tied, the sum of durations is stored on that
                         # one event_copy:
                         event_copy.duration = event.tied_duration
                     else:
@@ -1252,9 +1257,9 @@ class Sequence(EventGroup):
         onset : Optional[float], optional
             The onset (start) time. None means unknown, to be
             set when Sequence is added to a parent. (Defaults to None)
-        duration : Optional[float], optional 
-            The duration in quarters or seconds. 
-            (If duration is omitted or None, the duration is set so 
+        duration : Optional[float], optional
+            The duration in quarters or seconds.
+            (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset in content, or 0
             if there is no content.) (Defaults to None)
         content : Optional[list[Event]], optional
@@ -1287,7 +1292,7 @@ class Sequence(EventGroup):
     __slots__ = []
 
     def __init__(self, parent: Optional[EventGroup],
-                 onset: Optional[float] = None, duration: Optional[float] = None,   
+                 onset: Optional[float] = None, duration: Optional[float] = None,
                  content: list[Event] = None, pack: bool = False):
         """Sequence represents a temporal sequence of music events.
         """
@@ -1352,10 +1357,10 @@ class Sequence(EventGroup):
     def pack(self, onset: float = 0) -> float:
         """Adjust the content to be sequential, begining with the
         parameter onset (defaults to 0), and each other object at
-        an onset equal to the offset of the previous element. The 
-        duration of self is set to the offset of the last element. 
+        an onset equal to the offset of the previous element. The
+        duration of self is set to the offset of the last element.
         This method essentially, arranges the content to eliminate
-        gaps. pack() works recursively on elements that are 
+        gaps. pack() works recursively on elements that are
         EventGroups.
 
         Parameters
@@ -1393,9 +1398,9 @@ class Concurrence(EventGroup):
         onset : Optional[float], optional
             The onset (start) time. None means unknown, to be
             set when Sequence is added to a parent. (Defaults to None)
-        duration : Optional[float], optional 
-            The duration in quarters or seconds. 
-            (If duration is omitted or None, the duration is set so 
+        duration : Optional[float], optional
+            The duration in quarters or seconds.
+            (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset in content, or 0
             if there is no content.)
             Must be passed as a keyword parameter due to *args.
@@ -1445,7 +1450,7 @@ class Concurrence(EventGroup):
 
         self.onset = onset  # restore onset to None if it was None. This will
         # enable the adjustment of content if self.onset is set later.
-        
+
 
     def show(self, indent=0, label="Concurrence") -> "Concurrence":
         """Display the Concurrence information.
@@ -1467,7 +1472,7 @@ class Concurrence(EventGroup):
 
     def pack(self, onset: float = 0) -> None:
         """Adjust the content to onsets starting with the onset parameter
-        (defaults to 0). The duration of self is set to the maximum offset 
+        (defaults to 0). The duration of self is set to the maximum offset
         of the content. This method essentially arranges the content to
         eliminate gaps. pack() works recursively on elements that are
         EventGroups.
@@ -1495,9 +1500,9 @@ class Concurrence(EventGroup):
 class Chord(Concurrence):
     """A Chord is a collection of Notes, normally with onsets equal
     to that of the chord and the same durations but distinct keynums,
-    but none of this is enforced.  The order of notes is arbitrary. 
+    but none of this is enforced.  The order of notes is arbitrary.
     Normally, a Chord is a member of a Measure. There is no requirement
-    that simultaneous or overlapping notes be grouped into Chords, 
+    that simultaneous or overlapping notes be grouped into Chords,
     so the Chord class is merely an optional element of music structure
     representation.
 
@@ -1525,7 +1530,7 @@ class Chord(Concurrence):
             as a keyword parameter due to *args. (Defaults to None)
         duration : Optional[float], optional
             The duration in quarters or seconds. (Defaults to None)
-            (If duration is omitted or None, the duration is set so 
+            (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset of args, or 0
             if there is no content.) Must be passed as a keyword
             parameter due to *args. (Defaults to None)
@@ -1551,7 +1556,7 @@ class Chord(Concurrence):
     def __init__(self, *args: Event,
                  parent: Optional[EventGroup] = None,
                  onset: Optional[float] = None,
-                 duration: Optional[float] = None): 
+                 duration: Optional[float] = None):
         """Chord typically represents a set of Note events.
         """
         super().__init__(parent, onset, duration, list(args))
@@ -1680,7 +1685,8 @@ class Measure(Sequence):
 
 
 def note_onset(note: Note) -> float:
-    """helper function to sort notes
+    """
+    Helper function to sort notes
 
     Parameters
     ----------
@@ -1712,16 +1718,16 @@ class Score(Concurrence):
             not have parents, so the default onset is 0. You can override
             this using keyword parameter (due to *args).
         duration : Optional[float], optional
-            The duration in quarters or seconds. 
-            (If duration is omitted or None, the duration is set so 
+            The duration in quarters or seconds.
+            (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset of args, or 0
-            if there is no content.) Must be passed as a keyword 
+            if there is no content.) Must be passed as a keyword
             parameter due to *args. (Defaults to None)
         time_map : TimeMap, optional
             A map from quarters to seconds (or seconds to quarters).
             Must be passed as a keyword parameter due to *args.
             (Defaults to None)
-            
+
 
     Attributes
     ----------
@@ -1884,7 +1890,7 @@ class Score(Concurrence):
         """True if the units are in seconds, False if in quarters.
         """
         return self._units_are_seconds
-    
+
 
     def convert_to_seconds(self) -> None:
         """Convert the score to represent time in seconds.
@@ -1902,7 +1908,7 @@ class Score(Concurrence):
             return
         super()._convert_to_quarters(self.timemap)
         self.units_are_seconds = False   # clear the flag
-    
+
 
     def collapse_parts(self, part=None, staff=None, has_ties=True):
         """merge the notes of selected Parts and Staffs into a flattened
@@ -1973,7 +1979,7 @@ class Score(Concurrence):
             copies = []  # copy all notes to here
             for note in notes:
                 # rather than a possibly expensive insert into new_part, we
-                # use sort (below) to construct the content of new_part. 
+                # use sort (below) to construct the content of new_part.
                 copies.append(note.copy())
             notes = copies
         # notes can be modified, so reuse them in the new_part:
@@ -2208,11 +2214,11 @@ class Part(Concurrence):
             parameter due to *args. (Defaults to None)
         onset : Optional[float], optional
             The onset (start) time. If unknown (None), it will be set
-            when this Part is added to a parent. Must be passed as a 
+            when this Part is added to a parent. Must be passed as a
             keyword parameter due to *args. (Defaults to None)
-        duration : Optional[float], optional 
-            The duration in quarters or seconds. 
-            (If duration is omitted or None, the duration is set so 
+        duration : Optional[float], optional
+            The duration in quarters or seconds.
+            (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset of args, or 0
             if there is no content.)  Must be passed as a keyword
             parameter due to *args. (Defaults to None)
@@ -2386,11 +2392,11 @@ class Staff(Sequence):
             The containing object or None. (Defaults to None)
         onset : Optional[float], optional
             The onset (start) time. If unknown (None), it will be set
-            when this Staff is added to a parent. Must be passed as a 
+            when this Staff is added to a parent. Must be passed as a
             keyword parameter due to *args. (Defaults to None)
-        duration : Optional[float], optional 
-            The duration in quarters or seconds. 
-            (If duration is omitted or None, the duration is set so 
+        duration : Optional[float], optional
+            The duration in quarters or seconds.
+            (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset of args, or 0
             if there is no content.) Must be passed as a keyword
             parameter due to *args. (Defaults to None)
