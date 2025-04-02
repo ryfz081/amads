@@ -2182,7 +2182,7 @@ class Score(Concurrence):
         return self
 
 
-    def sorted_notes(self):
+    def get_sorted_notes(self):
         """Return a list of sorted notes with merged ties"""
         # score will have one Part, content of which is all Notes:
         return self.flatten(collapse=True).content[0].content

@@ -60,7 +60,7 @@ def boundary(score: Score):
     if not ismonophonic(score):
         raise ValueError("Score must be monophonic")
 
-    notes = score.sorted_notes()
+    notes = score.get_sorted_notes()
 
     # profiles
     pp = [abs(pair[1].keynum - pair[0].keynum) for pair in zip(notes, notes[1:])]

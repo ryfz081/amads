@@ -234,7 +234,7 @@ def r_load_melody(melody: Score, name: str):
 
     assert ismonophonic(melody)
 
-    notes = melody.sorted_notes()
+    notes = melody.get_sorted_notes()
 
     # Extract onset, pitch, duration for each note
     onsets = FloatVector([note.onset for note in notes])

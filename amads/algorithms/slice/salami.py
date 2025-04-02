@@ -138,7 +138,7 @@ def salami_slice(
         The sequence of vertical slices
     """
     if isinstance(passage, Score):
-        notes = passage.sorted_notes()
+        notes = passage.get_sorted_notes()
     else:
         notes = passage
 

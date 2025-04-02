@@ -13,7 +13,7 @@ def twochan_score():
 
 @fixture
 def twochan_notes(twochan_score):
-    return twochan_score.sorted_notes()
+    return twochan_score.get_sorted_notes()
 
 
 # Stop matplotlib plot.show() from blocking the tests

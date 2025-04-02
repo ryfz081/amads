@@ -38,7 +38,7 @@ def test_import_midi(midi_filename):
 
     assert len(score_notes) == len(pm_notes)
 
-    flattened_notes = score.sorted_notes()
+    flattened_notes = score.get_sorted_notes()
 
     assert len(flattened_notes) == len(pm_notes)
 

@@ -45,7 +45,7 @@ def skyline(score: Score, threshold: float = 0.1):
     score = score.merge_tied_notes()
     new_score = score.emptycopy()
     skyline = Part(parent=new_score)
-    notes = score.sorted_notes()
+    notes = score.get_sorted_notes()
 
     # Algorithm: the basic idea is to scan notes and copy them
     # to skyline, a Part object. We can use shallow copy
