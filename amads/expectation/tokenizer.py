@@ -70,7 +70,7 @@
 from amads.expectation.tokenizers.base_tokenizer import Token, Tokenizer
 from amads.expectation.tokenizers.melody_tokenizer import MelodyIntervalTokenizer, IOITokenizer
 from amads.expectation.tokenizers.midi_tokenizer import MIDITokenizer, TSDTokenizer, REMITokenizer, MIDILikeTokenizer, SymusicTokenizer
-from amads.expectation.tokenizers.audio_tokenizer import AudioTokenizer, WavTokenizerAudio  # When implemented
+from amads.expectation.tokenizers.audio_tokenizer import AudioTokenizer, WavTokenizerAudio, VQAudioTokenizer  # When implemented
 
 # Define what should be available when someone does "from tokenizer import *"
 __all__ = [
@@ -88,5 +88,6 @@ __all__ = [
     'SymusicTokenizer',
     # Audio tokenizers
     'AudioTokenizer',
-    'WavTokenizerAudio'
+    'WavTokenizerAudio',
+    'VQAudioTokenizer'
 ]

@@ -1,6 +1,6 @@
 from typing import List
 from amads.core.basics import Score, Note
-from amads.expectation.tokenizer import Tokenizer, Token
+from amads.expectation.tokenizers.base_tokenizer import Token, Tokenizer
 from amads.pitch.ismonophonic import ismonophonic
 
 class MelodyIntervalTokenizer(Tokenizer):

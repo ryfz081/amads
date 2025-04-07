@@ -247,21 +247,21 @@ class REMITokenizer(SymusicTokenizer):
                 # For Pitch tokens, use the current note's start time (already in milliseconds)
                 if current_note_idx < len(notes):
                     current_time = notes[current_note_idx].time
-                    tokens.append(Token(value=tok, start_time=current_time / 1000.0))  # Convert ms to seconds
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0, name=token_str))  # Convert ms to seconds
                     current_note_idx += 1
                 else:
                     # If we've run out of notes, just use the last known time
-                    tokens.append(Token(value=tok, start_time=current_time / 1000.0))
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0, name=token_str))
             elif token_str.startswith('Position_'):
                 # Position tokens also get timing
                 if current_note_idx < len(notes):
                     current_time = notes[current_note_idx].time
-                    tokens.append(Token(value=tok, start_time=current_time / 1000.0))
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0, name=token_str))
                 else:
-                    tokens.append(Token(value=tok))
+                    tokens.append(Token(value=tok, name=token_str))
             else:
                 # Other tokens don't get timing
-                tokens.append(Token(value=tok))
+                tokens.append(Token(value=tok, name=token_str))
                 
         return tokens
 
@@ -290,13 +290,13 @@ class TSDTokenizer(SymusicTokenizer):
                 if current_note_idx < len(notes):
                     # Convert milliseconds to seconds for the timing
                     time_seconds = notes[current_note_idx].time / 1000.0
-                    tokens.append(Token(value=tok, start_time=time_seconds))
+                    tokens.append(Token(value=tok, start_time=time_seconds, name=token_str))
                     current_note_idx += 1
                 else:
-                    tokens.append(Token(value=tok))
+                    tokens.append(Token(value=tok, name=token_str))
             else:
                 # Other tokens don't get timing
-                tokens.append(Token(value=tok))
+                tokens.append(Token(value=tok, name=token_str))
                 
         return tokens
 
@@ -325,13 +325,13 @@ class MIDILikeTokenizer(SymusicTokenizer):
                 if current_note_idx < len(notes):
                     # Convert milliseconds to seconds for the timing
                     time_seconds = notes[current_note_idx].time / 1000.0
-                    tokens.append(Token(value=tok, start_time=time_seconds))
+                    tokens.append(Token(value=tok, start_time=time_seconds, name=token_str))
                     current_note_idx += 1
                 else:
-                    tokens.append(Token(value=tok))
+                    tokens.append(Token(value=tok, name=token_str))
             else:
                 # Other tokens don't get timing
-                tokens.append(Token(value=tok))
+                tokens.append(Token(value=tok, name=token_str))
                 
         return tokens
 
