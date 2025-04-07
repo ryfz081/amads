@@ -38,7 +38,10 @@ class LSTM(nn.Module, ExpectationModel):
         ExpectationModel.__init__(self)
         self.embedding_dim = embedding_dim
         self.hidden_dim = hidden_dim
-        self.device = device
+        
+        # Device handling - check if requested device is available
+        self.device = self._get_available_device(device)
+        
         self.token_to_id = None
         self.vocab_size = None
         self.model_initialized = False
@@ -46,6 +49,33 @@ class LSTM(nn.Module, ExpectationModel):
         # Initialize loss tracking
         self.train_losses = []
         self.val_losses = []
+    
+    def _get_available_device(self, requested_device: str) -> str:
+        """Check if the requested device is available and return an available device.
+        
+        Parameters
+        ----------
+        requested_device : str
+            Requested device ('cpu', 'cuda', or 'mps')
+            
+        Returns
+        -------
+        str
+            Available device (defaults to 'cpu' if requested device is not available)
+        """
+        # Check for CUDA
+        if requested_device == 'cuda' and not torch.cuda.is_available():
+            print(f"Warning: CUDA device requested but not available. Falling back to CPU.")
+            return 'cpu'
+        
+        # Check for MPS (Apple Silicon)
+        if requested_device == 'mps':
+            if not hasattr(torch.backends, 'mps') or not torch.backends.mps.is_available():
+                print(f"Warning: MPS device requested but not available. Falling back to CPU.")
+                return 'cpu'
+        
+        # Return the requested device if available
+        return requested_device
     
     def _initialize_model(self, corpus):
         """Initialize the model's vocabulary and neural network layers based on the corpus."""
@@ -70,7 +100,9 @@ class LSTM(nn.Module, ExpectationModel):
     def _prepare_sequence(self, sequence):
         """Convert a sequence of tokens to tensor of indices."""
         # Convert tokens to indices, using index 1 for any tokens not in vocabulary
-        return torch.tensor([self.token_to_id.get(token.value, 1) for token in sequence])
+        indices = [self.token_to_id.get(token.value, 1) for token in sequence]
+        # Create tensor on the correct device
+        return torch.tensor(indices, device=self.device)
     
     def _collate_fn(self, batch):
         """Simple padding of sequences to max length in batch."""
@@ -84,7 +116,8 @@ class LSTM(nn.Module, ExpectationModel):
             padding = [0] * (max_len - len(seq_ids))
             padded_batch.append(seq_ids + padding)
         
-        return torch.tensor(padded_batch)
+        # Move the tensor to the correct device
+        return torch.tensor(padded_batch, device=self.device)
 
     def forward(self, x):
         """Simple forward pass."""
@@ -96,18 +129,25 @@ class LSTM(nn.Module, ExpectationModel):
         return self.fc(lstm_out)
 
     def fit(self, corpus, n_epochs: int = 300, batch_size: int = 32,
-             validation_size: float = 0.1, patience: int = 10, seed: int = 1234) -> None:
+             validation_size: float = 0.1, patience: int = 10, 
+             learning_rate: float = 0.001, seed: int = 1234) -> None:
         # Set random seeds for reproducibility
         import random
         import numpy as np
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-        if torch.cuda.is_available():
+        
+        if torch.cuda.is_available() and self.device == 'cuda':
             torch.cuda.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)  # for multi-GPU
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+        
+        # Additional handling for MPS
+        if self.device == 'mps' and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            # MPS doesn't have as many seed settings, but set what we can
+            torch.mps.manual_seed(seed)
 
         if not self.model_initialized:
             self._initialize_model(corpus)
@@ -134,7 +174,7 @@ class LSTM(nn.Module, ExpectationModel):
         
         # Training setup
         criterion = nn.CrossEntropyLoss(ignore_index=0)  # ignore padding tokens
-        optimizer = torch.optim.Adam(self.parameters())
+        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         
         # Training loop
         best_val_loss = float('inf')
@@ -193,32 +233,56 @@ class LSTM(nn.Module, ExpectationModel):
             self.val_losses.append(avg_val_loss)
 
     def predict_sequence(self, sequence: List[Token]) -> SequencePrediction:
-        """Generate predictions for each token in the sequence."""
+        """Generate predictions for each token in the sequence.
+        
+        Parameters
+        ----------
+        sequence : List[Token]
+            Input sequence of tokens
+            
+        Returns
+        -------
+        SequencePrediction
+            Predictions for the sequence
+        """
         if not self.model_initialized:
             raise RuntimeError("Model must be trained before making predictions")
+        
+        if len(sequence) <= 1:
+            return SequencePrediction([])  # Need at least 2 tokens (1 context, 1 target)
+        
         predictions = []
         
-        # Convert sequence to indices, using 1 (unknown token) for OOV tokens
-        seq = torch.tensor([[self.token_to_id.get(t.value, 1) for t in sequence[:-1]]])
+        # Process the sequence in a single forward pass (more efficient)
+        # Convert sequence to indices and move to device
+        indices = [self.token_to_id.get(t.value, 1) for t in sequence[:-1]]
+        seq_tensor = torch.tensor([indices], device=self.device)
         
         self.eval()
         with torch.no_grad():
-            output = self(seq)
-            probs = torch.softmax(output[0], dim=-1)
+            # Single forward pass
+            output = self(seq_tensor)
             
-            for step_probs, target in zip(probs, sequence[1:]):
+            # Get probabilities for all positions at once
+            all_probs = torch.softmax(output[0], dim=-1)
+            
+            # Pre-compute token objects for vocabulary to avoid recreating them
+            token_cache = {value: Token(value) for value in self.token_to_id.keys()}
+            
+            # Process predictions for each position
+            for step_probs, target in zip(all_probs, sequence[1:]):
+                # Move probabilities to CPU for faster dictionary operations
+                probs_cpu = step_probs.cpu()
+                
+                # Build distribution dictionary more efficiently
                 distribution = {}
-                
-                # Add probabilities for known tokens
                 for value, idx in self.token_to_id.items():
-                    distribution[Token(value)] = step_probs[idx].item()
+                    # Use cached tokens
+                    distribution[token_cache[value]] = probs_cpu[idx].item()
                 
-                # Add probability for unknown tokens (index 1)
-                unknown_prob = step_probs[1].item()
-                
-                # If target is OOV, add it with the unknown probability
+                # Handle OOV target
                 if target.value not in self.token_to_id:
-                    distribution[target] = unknown_prob
+                    distribution[target] = probs_cpu[1].item()  # Use unknown token probability
                 
                 predictions.append(Prediction(
                     ProbabilityDistribution(distribution), 
@@ -241,7 +305,10 @@ class LSTM(nn.Module, ExpectationModel):
                             observation=current_token)
         
         # Otherwise use model's predictions
-        context_tensor = torch.tensor([[self.token_to_id.get(t.value, 1) for t in context]])
+        context_tensor = torch.tensor(
+            [[self.token_to_id.get(t.value, 1) for t in context]], 
+            device=self.device
+        )
         
         self.eval()
         with torch.no_grad():
