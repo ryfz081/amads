@@ -498,15 +498,15 @@ class Note(Event):
         Note
             The Note instance itself.
         """
-        tieinfo = ""
+        tie_info = ""
         if self.tie is not None:
-            tieinfo = " tied"
-        dynamicinfo = ""
+            tie_info = " tied"
+        dynamic_info = ""
         if self.dynamic is not None:
-            dynamicinfo = " dyn " + str(self.dynamic)
-        lyricinfo = ""
+            dynamic_info = " dyn " + str(self.dynamic)
+        lyric_info = ""
         if self.lyric is not None:
-            lyricinfo = " lyric " + self.lyric
+            lyric_info = " lyric " + self.lyric
         tie_prefix = "  tied to " if tied else ""
         if self.onset == None:
             onset = "NO ONSET"
@@ -518,7 +518,7 @@ class Note(Event):
             duration = f"{self.duration:0.3f}"
         print(" " * indent, f"{tie_prefix}Note at {onset}:",
               f"duration {duration} pitch ",
-              self.name_with_octave, tieinfo, dynamicinfo, lyricinfo, sep="")
+              self.name_with_octave, tie_info, dynamic_info, lyric_info, sep="")
         if self.tie:
             self.tie.show(indent + 2, tied=True)
         return self
@@ -657,12 +657,13 @@ class TimeSignature(Event):
             The onset (start) time. An initial value of None might
             be assigned when the TimeSignature is inserted into an EventGroup.
             (Defaults to None)
-        beat : int, optional
-            The "numerator" of the key signature: beats per measure, a
-            number, which may be a fraction. (Defaults to 4)
-        beat_type : int, optional
-            The "denominator" of the key signature: a whole number
-            power of 2, e.g. 1, 2, 4, 8, 16, 32, 64. (Defaults to 4)
+        upper : float, optional
+            The "numerator" of the key signature: subdivisions units per
+            measure, a number, which may be a fraction. (Defaults to 4)
+        lower : int, optional
+            The "denominator" of the key signature: a whole number power
+            of 2, e.g. 1, 2, 4, 8, 16, 32, 64. (Defaults to 4) representing
+            the symbol for one subdivision, e.g. 4 implies quarter note.
 
     Attributes
     ----------
@@ -672,19 +673,19 @@ class TimeSignature(Event):
             The onset (start) time.
         duration : float
             Always zero for this subclass.
-        beat : int
-            The "numerator" of the key signature: beats per measure.
-        beat_type : int
+        upper : float
+            The "numerator" of the key signature: subdivisions per measure.
+        lower : int
             The "denominator" of the key signature: a whole number power of 2.
     """
-    __slots__ = ["beat", "beat_type"]
+    __slots__ = ["upper", "lower"]
 
     def __init__(self,
                  parent: Optional["EventGroup"] = None,
-                 onset: float = 0, beat: int = 4, beat_type: int = 4):
+                 onset: float = 0.0, upper: float = 4.0, lower: int = 4):
         super().__init__(parent, 0, onset)
-        self.beat = beat
-        self.beat_type = beat_type
+        self.upper = upper
+        self.lower = lower
 
 
     def show(self, indent: int = 0) -> "TimeSignature":
@@ -701,7 +702,7 @@ class TimeSignature(Event):
             The TimeSignature instance itself.
         """
         print(" " * indent, f"TimeSignature at {self.onset:0.3f}: ",
-              f"{self.beat}/{self.beat_type}", sep="")
+              f"{self.upper}/{self.lower}", sep="")
         return self
 
 
@@ -736,7 +737,7 @@ class KeySignature(Event):
     __slots__ = ["keysig"]
 
     def __init__(self, parent: Optional["EventGroup"] = None,
-                 onset: float = 0, keysig: int = 0):
+                 onset: float = 0.0, keysig: int = 0):
         super().__init__(parent=parent, onset=onset, duration=0)
         self.keysig = keysig
 
@@ -866,10 +867,7 @@ class EventGroup(Event):
         time_map : TimeMap
             The TimeMap object used for conversion.
         """
-        onset_time = time_map.beat_to_time(self.onset)
-        offset_time = time_map.beat_to_time(self.onset + self.duration)
-        self.onset = onset_time
-        self.duration = offset_time - onset_time
+        super._convert_to_seconds(time_map)
         for elem in self.content:
             elem._convert_to_seconds(time_map)
 
@@ -918,17 +916,18 @@ class EventGroup(Event):
         return c
 
 
-    def expand_chords(self, new_parent: "EventGroup" = None) -> "EventGroup":
+    def expand_chords(self, parent: "EventGroup" = None) -> "EventGroup":
         """Replace chords with the multiple notes they contain.
-        Returns a deep copy with no parent unless new_parent is provided.
+        Returns a deep copy with no parent unless parent is provided.
         Normally, you will call score.expand_chords() which returns a deep
-        copy of Score with notes moved from each chord to its parent (a Measure
-        or a Part). The new_parent parameter is primarily for internal use when
-        expand_chords is called recursively on score content.
+        copy of Score with notes moved from each chord to the copy of the
+        chord's parent (a Measure or a Part). The parent parameter is 
+        primarily for internal use when expand_chords is called recursively
+        on score content.
 
         Parameters
         ----------
-        new_parent : EventGroup, optional
+        parent : EventGroup, optional
             The new parent to insert the copied EventGroup into. (Defaults to None)
 
         Returns
@@ -937,7 +936,7 @@ class EventGroup(Event):
             A deep copy of the EventGroup instance with all
             Chord instances expanded.
         """
-        group = self.emptycopy(new_parent)
+        group = self.emptycopy(parent)
         for item in self.content:
             if isinstance(item, Chord):
                 for note in item.content:  # expand chord
@@ -1193,13 +1192,13 @@ class EventGroup(Event):
         return self
 
 
-    def remove_rests(self, new_parent: "EventGroup" = None) -> "EventGroup":
+    def remove_rests(self, parent: "EventGroup" = None) -> "EventGroup":
         """Remove all Rest objects. Returns a deep copy with no parent,
-        unless new_parent is provided.
+        unless parent is provided.
 
         Parameters
         ----------
-        new_parent : EventGroup, optional
+        parent : EventGroup, optional
             The new parent to insert the copied Event into. (Defaults to None)
 
         Returns
@@ -1213,7 +1212,7 @@ class EventGroup(Event):
         # indicating that the subtree copy should be inserted into a
         # parent which is the new copy at the next level up. Of course,
         # we check for and ignore Rests so they are never copied.
-        group = self.emptycopy(new_parent)
+        group = self.emptycopy(parent)
         for item in self.content:
             if isinstance(item, Rest):
                 continue  # skip the Rests while making deep copy
@@ -1354,12 +1353,12 @@ class Sequence(EventGroup):
             return self.last.offset
 
 
-    def pack(self, onset: float = 0) -> float:
+    def pack(self, onset: float = 0.0) -> float:
         """Adjust the content to be sequential, begining with the
         parameter onset (defaults to 0), and each other object at
         an onset equal to the offset of the previous element. The
         duration of self is set to the offset of the last element.
-        This method essentially, arranges the content to eliminate
+        This method essentially arranges the content to eliminate
         gaps. pack() works recursively on elements that are
         EventGroups.
 
@@ -1403,7 +1402,6 @@ class Concurrence(EventGroup):
             (If duration is omitted or None, the duration is set so
             that self.offset ends at the max offset in content, or 0
             if there is no content.)
-            Must be passed as a keyword parameter due to *args.
         content : Optional[list[Event]], optional
             A list of Event objects to be added to the group. Content
             events with onsets of None are set to the offset of the
@@ -1470,7 +1468,7 @@ class Concurrence(EventGroup):
         return super().show(indent, label)
 
 
-    def pack(self, onset: float = 0) -> None:
+    def pack(self, onset: float = 0.0) -> None:
         """Adjust the content to onsets starting with the onset parameter
         (defaults to 0). The duration of self is set to the maximum offset
         of the content. This method essentially arranges the content to
@@ -1684,24 +1682,6 @@ class Measure(Sequence):
 
 
 
-def note_onset(note: Note) -> float:
-    """
-    Helper function to sort notes
-
-    Parameters
-    ----------
-    note : Note
-        The note whose onset time is to be retrieved.
-
-    Returns
-    -------
-    float
-        The onset time of the note.
-    """
-    return note.onset
-
-
-
 class Score(Concurrence):
     """A score is a top-level object representing a musical work.
     Normally, a Score contains Part objects, all with onsets zero.
@@ -1862,7 +1842,7 @@ class Score(Concurrence):
                 raise ValueError("iois list must have length len(pitches) - 1")
 
             # Convert IOIs to onsets
-            deonsetsltas = [0.0]  # first note onsets at 0
+            onsets = [0.0]  # first note onsets at 0
             current_time = 0.0
             for ioi in iois:
                 current_time += float(ioi)
@@ -1911,28 +1891,43 @@ class Score(Concurrence):
 
 
     def collapse_parts(self, part=None, staff=None, has_ties=True):
-        """merge the notes of selected Parts and Staffs into a flattened
-        score with only one part, retaining only Notes. If you are using
-        this method to extract notes by Staff, you can save some
-        computation by performing a one-time score = score.merge_tied_notes()
+        """Merge the notes of selected Parts and Staffs into a flattened
+        score with only one part, retaining only Notes. (Ties are merged.)
+
+        If you are using this method to extract notes by Staff, you can save
+        some computation by performing a one-time
+            score = score.merge_tied_notes()
         and providing the parameter has_ties=False. If has_ties is False,
         it is assumed without checking that part.has_ties() is False,
         allowing this method to skip calls to part.merge_tied_notes()
         for each selected part.
 
-        If part is given, only notes from the selected part are included.
-        part may be an integer to match a part number
-        part may be a string to match a part instrument
-        part may be a list with an index, e.g. [3] will select
-        the 4th part (because indexing is zero-based)
-        If staff is given, only the notes from selected staves are included.
-        staff may be an integer to match a staff number
-        staff may be a list with an index, e.g. [1] will select
-        the 2nd staff.
-        If staff is given without a part specification, an exception
-        is raised.
-        If staff is given and this is a flattened score (no staves),
-        an exception is raised.
+        The flatten() method is similar. It can flatten each Part
+        while retaining (not merging) the Parts, or it can flatten
+        all notes into one Part. Normally, you use collapse_parts
+        to select an individual Staff or Part and flatten it to a
+        single note sequence.
+
+        Parameters
+        ----------
+        part : Union[Number, str, list[int], None], optional
+            If part is not None, only notes from the selected part are
+            included.
+            part may be an integer to match a part number, or
+            part may be a string to match a part instrument, or
+            part may be a list with an index, e.g. [3] will select the 4th
+            part (because indexing is zero-based).
+        staff : Union[int, List[int], None], optional
+            If staff is given, only the notes from selected staves are
+            included.
+            staff may be an integer to match a staff number, or
+            staff may be a list with an index, e.g. [1] will select
+            the 2nd staff.
+            If staff is given without a part specification, an exception
+            is raised.
+            If staff is given and this is a flattened score (no staves),
+            an exception is raised.
+
         Note: The use of the form [1] for part and staff index notation
         is not ideal, but we need to distinguish between part numbers
         (arbitrary labels) and part index. Initially, I used tuples,
@@ -1994,10 +1989,17 @@ class Score(Concurrence):
 
     def flatten(self, collapse=False):
         """Deep copy notes in a score to a flattened score consisting of
-        only Parts containing Notes. If collapse is True, multiple parts are
-        collapsed into a single part, and notes are ordered according to
-        onset times. The resulting score contains one or more Parts, each
-        containing only Notes.
+        only Parts containing Notes (Ties are merged.)
+
+        See collapse_parts() to select specific Parts or Staffs and
+        flatten them.
+
+        Parameters
+        ----------
+        collapse : bool, optional
+            If collapse is True, multiple parts are collapsed into a single
+            part, and notes are ordered according to onset times. The resulting
+            score contains one or more Parts, each containing only Notes.
         """
         score = self.merge_tied_notes()  # also copies score
         # it is now safe to modify score because it has been copied
@@ -2246,7 +2248,7 @@ class Part(Concurrence):
 
     def __init__(self, *args: Event,
                  parent: Optional[Score],
-                 onset: float = 0,
+                 onset: float = 0.0,
                  duration: Optional[float] = None,
                  number: Optional[str] = None,
                  instrument: Optional[str] = None):
@@ -2321,9 +2323,14 @@ class Part(Concurrence):
 
     def flatten(self, in_place=False):
         """Build a flattened Part where content will consist of notes only.
-        If in_place=True, Part already has no ties and can be modified.
-        Otherwise, return a new Part where deep copies of tied notes are
-        merged.
+
+        Parameters
+        ----------
+
+        in_place : bool, optional
+            If in_place=True, assume Part already has no ties and can be
+            modified. Otherwise, return a new Part where deep copies of
+            tied notes are merged.
         """
         part = self if in_place else self.merge_tied_notes()
         notes = part.list_all(Note)  # need list so we can sort
@@ -2468,37 +2475,6 @@ class Staff(Sequence):
             if isinstance(measure, Measure) and not measure.is_measured():
                 return False
         return True
-
-
-    # def strip_ties(self, parent, tied_to):
-    #     """Create a new staff with tied note sequences replaced by
-    #     equivalent notes
-    #     """
-    #     staff = self.emptycop_into(parent)
-    #     # keep a set of tied-to notes so we can ignore them
-    #     for m_num, m in enumerate(self.find_all(Measure)):
-    #         measure = m.emptycopy(staff)
-    #         for event in m.content:
-    #             if isinstance(event, Note):
-    #                 if event.tie:  # collect tied-to notes so we can skip them
-    #                     tied_to.add(event.tie)
-    #                 if event not in tied_to:
-    #                     new_event = event.copy(measure)
-    #                     new_event.duration = new_event.tied_duration
-    #                     new_event.tie = None  # in case it was in a tied group
-    #                 # else ignore this note which tied from an ealier note
-    #             elif isinstance(event, Chord):
-    #                 new_chord = event.copy(measure)
-    #                 for note in event.content:
-    #                     if note.tie:
-    #                         tied_to.add(note.tie)
-    #                     if note.tie not in tied_to:
-    #                         new_note = note.copy(new_chord)
-    #                         new_note.duration = note.tied_duration
-    #                         new_note.tie = None
-    #             else:  # non-note objects are simply copied:
-    #                 event.copy(measure)
-    #     return staff
 
 
     def remove_measures(self) -> "Staff":
