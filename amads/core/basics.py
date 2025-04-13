@@ -1577,12 +1577,11 @@ class Chord(Concurrence):
 
 
     def is_measured(self):
-        """Test if Chord is well-formed. Conforms to strict hierarchy of:
-        Chord-Note
+        """Test if Chord conforms to strict hierarchy of Chord-Note
         """
         for note in self.content:
-            # Chord can contain many object types, so we can only rule
-            # out things that are outside of the strict hierarchy:
+            # Chord can (in theory) contain many object types, so we can
+            # only rule out things that are outside of the strict hierarchy:
             if isinstance(note, (Score, Part, Staff, Measure, Rest, Chord)):
                 return False
         return True
@@ -1591,8 +1590,8 @@ class Chord(Concurrence):
 
 class Measure(Sequence):
     """A Measure models a musical measure (bar) and can contain many object
-    types including Note, Rest, Chord, KeySignature, Timesignature. Measures
-    are elements of a Staff.
+    types including Note, Rest, Chord, KeySignature, Timesignature and (in
+    theory) custom Events. Measures are elements of a Staff.
 
     See EventGroup documentation on construction styles.
 
@@ -1663,17 +1662,17 @@ class Measure(Sequence):
 
 
     def is_measured(self) -> bool:
-        """Test if Measure is well-formed: Conforms to strict hierarchy of:
+        """Test if Measure conforms to strict hierarchy of:
         Measure-(Note or Rest or Chord) and Chord-Note
 
         Returns
         -------
         bool
-            True if the Measure is well-formed, False otherwise.
+            True if the Measure conforms to normal hierarchy.
         """
         for item in self.content:
-            # Measure can contain many object types, so we can only rule
-            # out things that are outside of the strict hierarchy:
+            # Measure can (in theory) contain many object types, so we can
+            # only rule out things that are outside of the strict hierarchy:
             if isinstance(item, (Score, Part, Staff, Measure)):
                 return False
             if isinstance(item, Chord) and not item.is_measured():
@@ -2468,8 +2467,9 @@ class Staff(Sequence):
         Staff-Measure-(Note or Rest or Chord) and Chord-Note)
         """
         for measure in self.content:
-            # Staff can contain many objects such as key signature or time
-            # signature. We only rule out types that are outside-of-hierarchy:
+            # Staff can (in theory) contain many objects such as key signature
+            # or time signature. We only rule out types that are
+            # outside-of-hierarchy:
             if isinstance(measure, (Score, Part, Staff, Note, Rest, Chord)):
                 return False
             if isinstance(measure, Measure) and not measure.is_measured():
