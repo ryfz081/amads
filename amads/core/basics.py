@@ -25,6 +25,33 @@ Score (one per musical work or movement)
     Part (one per instrument)
         Note (no other instances allowed, no ties)
 
+Score, Part, Staff, Measure, and Chord are all EventGroups and
+their constructors can take a list of Events as their content.
+
+The safe way to construct a score is to fully specify onsets
+for every Event. These onsets are absolute and will not be adjusted
+*provided that* the parent onset is also specified.
+
+However, for convenience and to support simple constructs such as
+  Chord(Note(pitch=60), Note(pitch=64)),
+onsets are optional and default to None. To make this simple example
+work:
+1) Concurrences (Score, Part, and Chord) replace unspecified (None) 
+   onsets in their immediate content with the parent's onset (or 0
+   if it is None).
+2) Sequences (Staff, Measure) replace unspecified (None) onsets in
+   their immediate content starting with the parent's onset (or 0 if 
+   None) for the first event and the offset of the previous Event for
+   subsequent events.
+3) To handle the construction of nested Events, when an unspecified
+   (None) onset of an EventGroup is replaced, the entire subtree of
+   its content is shifted by the same amount. E.g. if a Chord is
+   constructed with Notes with unspecified onsets, the Notes onsets
+   will initially be replaced with zeros. Then, if the Chord onset is
+   unspecified (None) and the Chord is passed in the content of a
+   Measure and the Chord onset is replaced with 1.0, then the Notes
+   are shifted to 1.0. If the Measure is then passed in the content
+    of a Staff, the Measure and all its content might be shifted again.
 """
 
 import copy
@@ -852,7 +879,7 @@ class EventGroup(Event):
         value will treat the content onsets as deltas and shift them by onset
         so that the resulting content has correct absolute onset times.
         """
-        if onset == None and onset != 0: # shift content
+        if self._onset == None and self._onset != 0: # shift content
             for elem in self.content:
                 elem._onset += onset
         self._onset = onset
@@ -1444,11 +1471,8 @@ class Concurrence(EventGroup):
                 max_offset = max(max_offset, e.offset)
         if duration == None:  # compute duration from content
             duration = max_offset - temp_onset
-        super().__init__(parent, temp_onset, duration, content)
-
-        self.onset = onset  # restore onset to None if it was None. This will
-        # enable the adjustment of content if self.onset is set later.
-
+        super().__init__(parent, onset, duration, content)
+ 
 
     def show(self, indent=0, label="Concurrence") -> "Concurrence":
         """Display the Concurrence information.
