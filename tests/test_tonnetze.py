@@ -31,12 +31,7 @@ def test_a2_vertex_tonnetz_init(d_major_chord):
 
 def test_a2_vertex_tonnetz_init_chord_object():
     """Test initialization with a Chord object."""
-    chord = (
-        Chord()
-        .insert(Note(pitch=60))  # C4
-        .insert(Note(pitch=64))  # E4
-        .insert(Note(pitch=67))  # G4
-    )
+    chord = Chord(Note(pitch=60), Note(pitch=64), Note(pitch=67))
     euler = A2VertexTonnetz(chord)
     assert euler.root == 0
     assert euler.major_not_minor is True
