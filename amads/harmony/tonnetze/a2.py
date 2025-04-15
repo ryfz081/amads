@@ -25,7 +25,8 @@ class A2VertexTonnetz:
     Attributes
     ----------
     pitch_multi_set : tuple
-        The chord's pitches as MIDI numbers, including any duplicate entries.
+        The chord's pitches as MIDI numbers.
+        This can include octave-specific entries (60) and duplicate entries (60, 60).
     pc_set : set
         The chord's pitch class set.
     root : int
@@ -97,16 +98,20 @@ class A2VertexTonnetz:
         if isinstance(chord, List):
             pitch_multi_set = tuple(chord)
         elif isinstance(chord, Chord):
-            pitch_multi_set = (note.pitch.keynum for note in chord.find_all(Note))
+            pitch_multi_set = tuple(
+                [note.pitch.keynum for note in chord.find_all(Note)]
+            )
         elif isinstance(chord, PitchCollection):
             pitch_multi_set = chord.pitch_class_multi_set
         else:
             raise TypeError(
-                "Chord must be a list of MIDI pitches, a `Chord` object, or a `PitchCollection` object"
+                "Chord must be a list of MIDI pitches, a `Chord` object, or a `PitchCollection` object."
             )
 
         if len(pitch_multi_set) == 0:
-            raise ValueError("Chord must contain at least one pitch")
+            raise ValueError("Chord must contain at least one pitch.")
+        if any(x < 0 for x in pitch_multi_set):
+            raise ValueError("Chord must not contain negative integers.")
 
         pc_set = set(pitch % 12 for pitch in list(pitch_multi_set))
         return pitch_multi_set, pc_set
@@ -188,12 +193,27 @@ class A2VertexTonnetz:
         """
         Shared method for all single pitch class transforms.
         Run multiple times for 2+ pitch class transforms.
+
+        Transforms move constituent pitches of the multiset in place, preserving octave.
+        The exception is for numbers in the range 0–11.
+        These numbers are taken to be pitch classes rather than true key numbers.
+        This prevents the return of negative numbers (e.g., 0-2 = 10).
+        We considered the counterargument that one might have, say, a key number of 11 to be treated as such.
+        In that case, 11+2=13 rather than 1.
+        That is both an extremely narrow use case, and the consequences are very small:
+        you still end up with right pitch class, but at an even lower octave than intended.
+        The upsides of this design outweigh that small detraction:
+        the system handles any pitch and never returns a negative,
+        it is flexible wrt pitch class versus key num.
         """
         new_key_nums = []
         for kn in self.pitch_multi_set:
-            if kn % 12 == pitch_class_to_change:
-                new_key_nums.append(kn + transposition)
-            else:
+            if kn % 12 == pitch_class_to_change:  # transform
+                if kn in range(12):
+                    new_key_nums.append((kn + transposition) % 12)  # See docs.
+                else:
+                    new_key_nums.append(kn + transposition)  # See docs.
+            else:  # don't transform
                 new_key_nums.append(kn)
 
         return tuple(new_key_nums)
