@@ -27,9 +27,9 @@ dd = duration_distribution_2(myscore)
 
 print("Duration pair distribution:", dd)
 dd.show()
-dd.plot(display=True)  # Creates and displays the plot
+dd.plot()  # Creates and displays the plot
 
 # %%
 # Optain the figure from dd.plot() and show plot explicitly
-fig = dd.plot()
+fig = dd.plot(show=False)
 plt.show()
