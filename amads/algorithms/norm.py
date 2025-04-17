@@ -184,13 +184,13 @@ def pnorm_distance(profile_1: np.array, profile_2: np.array, p: int = 2):
     >>> profile_1 = [0, 1, 2, 3, 4]
     >>> profile_2 = [1, 2, 3, 4, 5]
     >>> pnorm_distance(profile_1, profile_2)
-    np.float64(2.23606797749979)
+    2.23606797749979
 
     """
     vector1 = np.array(profile_1)
     vector2 = np.array(profile_2)
     diffs = np.abs(vector1 - vector2)
-    return np.sum(diffs**p) ** (1 / p)
+    return float(np.sum(diffs**p) ** (1 / p))
 
 
 # ------------------------------------------------------------------------------
