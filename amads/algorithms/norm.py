@@ -2,7 +2,7 @@
 Local implementation of standard normalization routines centrally for use in various functions.
 The local implementation serves to obviate the need for external libraries (e.g., scipy) in basic cases.
 
-Comparisons on this modules support any pair of profiles.
+Comparisons on this module support any pair of profiles.
 Example use cased include pitch class profile matching for 'best key' measurement,
 and the metrical equivalent.
 """
@@ -14,7 +14,7 @@ __author__ = "Mark Gotham"
 
 # ------------------------------------------------------------------------------
 
-l1_names = ["sum", "manhattan", "city", "cityblock" "taxicab", "l1"]
+l1_names = ["sum", "manhattan", "city", "cityblock", "city block", "taxicab", "l1"]
 l2_names = ["euclidean", "l2"]
 max_names = ["max", "maximum", "inf", "infinity"]
 
@@ -35,10 +35,10 @@ def normalize(
 
     method: str
         The desired normalization routine. Chose from any of
-        'Euclidean' or 'l2' ();
+        'Euclidean' or 'l2' (scale so that the vector length is 1);
         'Sum', 'Manhattan', or 'l1' (divide each value by the total across the profile);
         'max', 'maximum', 'inf' or 'infinity' (divide each value by the largest value).
-        These strings are not case-sensitive (unaffected by presence/absence of initial caps etc).
+        These strings are not case-sensitive.
 
     round_output: bool
         Optionally, round the output values (default False).
@@ -105,11 +105,11 @@ def shared_length(profile_1: list, profile_2: list) -> int:
         return ln1
 
 
-def manhattan_distance(profile_1: list, profile_2: list) -> float:
+def manhattan_distance(profile_1: list, profile_2: list, norm_: bool = False) -> float:
     """
     The 'l1' aka 'Manhattan' distance between two points in N dimensional space.
-
-    List length check and normalization are included.
+    List length checks are included.
+    Normalization is optional (defaults to False).
 
     Examples
     --------
@@ -117,40 +117,80 @@ def manhattan_distance(profile_1: list, profile_2: list) -> float:
     >>> profile_1 = [0, 1, 2, 3, 4]
     >>> profile_2 = [1, 2, 3, 4, 5]
     >>> manhattan_distance(profile_1, profile_2)
+    5.0
+
+    >>> manhattan_distance(profile_1, profile_2, norm_=True)
     0.2
+
     """
     shared_length(profile_1, profile_2)
-    profile_1 = normalize(profile_1, "l1")
-    profile_2 = normalize(profile_2, "l1")
+    if norm_:
+        profile_1 = normalize(profile_1, "l1")
+        profile_2 = normalize(profile_2, "l1")
     return float(sum([abs(profile_1[n] - profile_2[n]) for n in range(len(profile_1))]))
 
 
-def euclidean_distance(profile_1: list, profile_2: list) -> float:
+def euclidean_distance(profile_1: list, profile_2: list, norm_: bool = False) -> float:
     """
     The Euclidean distance between two points
     is the length of the line segment connecting them in N dimensional space and
     is given by the Pythagorean formula.
-    normalize to a unit sphere in N-dimensional space
-
-    List length check and normalization are included.
+    List length checks are included.
+    Normalization is optional (defaults to False).
 
     Examples
     --------
-
     >>> profile_1 = [0, 1, 2, 3, 4]
     >>> profile_2 = [1, 2, 3, 4, 5]
     >>> euclidean_distance(profile_1, profile_2)
+    2.23606797749979
+
+    >>> euclidean_distance(profile_1, profile_2, norm_=True)
     0.17474594224380802
 
     """
     shared_length(profile_1, profile_2)
-    profile_1 = normalize(profile_1, "l2")
-    profile_2 = normalize(profile_2, "l2")
+
+    if norm_:
+        profile_1 = normalize(profile_1, "l2")
+        profile_2 = normalize(profile_2, "l2")
     return float(
         np.sqrt(
             sum([(profile_1[n] - profile_2[n]) ** 2 for n in range(len(profile_1))])
         )
     )
+
+
+def pnorm_distance(profile_1: np.array, profile_2: np.array, p: int = 2):
+    """
+    Calculate the p-norm distance between two vectors.
+
+    Parameters
+    ----------
+    profile_1: list
+        A 1-D numpy array of numeric data.
+    profile_2: list
+        Another 1-D numpy array of numeric data.
+    p: int
+        The order of the normalisation.
+        The default is 2 (for Euclidean distance), alternatives include 1 for Manhattan.
+
+    Returns
+    -------
+    float: The p-norm distance.
+
+    Example
+    -------
+    >>> profile_1 = [0, 1, 2, 3, 4]
+    >>> profile_2 = [1, 2, 3, 4, 5]
+    >>> pnorm_distance(profile_1, profile_2)
+    np.float64(2.23606797749979)
+
+    """
+    vector1 = np.array(profile_1)
+    vector2 = np.array(profile_2)
+    diffs = np.abs(vector1 - vector2)
+    return np.sum(diffs**p) ** (1 / p)
 
 
 # ------------------------------------------------------------------------------
