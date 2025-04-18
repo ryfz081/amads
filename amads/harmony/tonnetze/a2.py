@@ -77,9 +77,7 @@ class A2VertexTonnetz:
         chord: Union[List[int], Chord, PitchCollection],
     ):
         self.pitch_multi_set, self.pc_set = self.load_chord(chord)
-        self.major_not_minor = None
-        self.root = None
-        self.get_quality_and_root()
+        self.major_not_minor, self.root = self.get_quality_and_root()
 
         self.l_transform = None
         self.p_transform = None
@@ -128,15 +126,16 @@ class A2VertexTonnetz:
         analysis = ParncuttRootAnalysis(
             list(self.pc_set)
         )  # TODO have Parncutt accept any Iterable
-        self.root = analysis.root
+        root = analysis.root
 
-        reference = sorted(set(((x - self.root) % 12 for x in self.pc_set)))
+        reference = sorted(set(((x - root) % 12 for x in self.pc_set)))
         if reference == [0, 4, 7]:
-            self.major_not_minor = True
+            major_not_minor = True
         elif reference == [0, 3, 7]:
-            self.major_not_minor = False
+            major_not_minor = False
         else:
             raise ValueError("Not a major or minor triad.")
+        return major_not_minor, root
 
     def leading_tone_exchange(self):
         """
@@ -154,7 +153,7 @@ class A2VertexTonnetz:
             pitch_class_to_change = self.root
             transposition = -1
         else:  # minor
-            pitch_class_to_change = self.root + 7 % 12  # fifth
+            pitch_class_to_change = (self.root + 7) % 12  # fifth
             transposition = 1
 
         self.l_transform = self.transform(pitch_class_to_change, transposition)
@@ -166,10 +165,10 @@ class A2VertexTonnetz:
         Note that this is not how German music theory uses the term parallel.
         """
         if self.major_not_minor:
-            pitch_class_to_change = self.root + 4 % 12
+            pitch_class_to_change = (self.root + 4) % 12
             transposition = -1
         else:  # minor
-            pitch_class_to_change = self.root + 3 % 12  # fifth
+            pitch_class_to_change = (self.root + 3) % 12  # fifth
             transposition = 1
 
         self.p_transform = self.transform(pitch_class_to_change, transposition)
@@ -181,7 +180,7 @@ class A2VertexTonnetz:
         (e.g., F major to d minor and vice versa).
         """
         if self.major_not_minor:
-            pitch_class_to_change = self.root + 7 % 12  # fifth
+            pitch_class_to_change = (self.root + 7) % 12  # fifth
             transposition = 2
         else:  # minor
             pitch_class_to_change = self.root
@@ -204,7 +203,7 @@ class A2VertexTonnetz:
         you still end up with right pitch class, but at an even lower octave than intended.
         The upsides of this design outweigh that small detraction:
         the system handles any pitch and never returns a negative,
-        it is flexible wrt pitch class versus key num.
+        and it is flexible wrt pitch class versus key num.
         """
         new_key_nums = []
         for kn in self.pitch_multi_set:
