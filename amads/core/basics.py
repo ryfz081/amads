@@ -674,7 +674,8 @@ class Note(Event):
         return self.pitch.lower_enharmonic()
 
 
-    def simplest_enharmonic(self) -> "Pitch":
+    def simplest_enharmonic(self, 
+            sharp_or_flat: Optional[str] = "default") -> "Pitch":
         """Return a valid Pitch with the simplest enharmonic representation.
         (see Pitch.simplest_enharmonic)
 
@@ -2292,7 +2293,7 @@ class Part(Concurrence):
     __slots__ = ["number", "instrument"]
 
     def __init__(self, *args: Event,
-                 parent: Optional[Score],
+                 parent: Optional[Score] = None,
                  onset: float = 0.0,
                  duration: Optional[float] = None,
                  number: Optional[str] = None,

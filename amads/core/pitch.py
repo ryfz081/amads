@@ -497,10 +497,8 @@ class Pitch:
         return Pitch(self.key_num, alt=alt)
 
 
-    def simplest_enharmonic(
-            self,
-            sharp_or_flat: Optional[str] = 'default'
-    ) -> "Pitch":
+    def simplest_enharmonic(self,
+            sharp_or_flat: Optional[str] = 'default') -> "Pitch":
         """
         Create a new Pitch object with the simplest enharmonic representation
         of the current pitch. I.e., if there exists an enharmonic-equivalent
