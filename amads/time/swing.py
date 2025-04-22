@@ -131,7 +131,16 @@ def beat_upbeat_ratio(
     # Apply our filtering if required
     # Filter before log_2 transform to make things simpler
     if bounded:
-        burs = [i if lower_bound < i < upper_bound else None for i in burs]
+        newburs = []
+        for b in burs:
+            if isinstance(b, float):
+                if lower_bound < b < upper_bound:
+                    newburs.append(b)
+                else:
+                    newburs.append(None)
+            else:
+                newburs.append(None)
+        burs = newburs
     # Express as base-2 log if required
     if log2:
         burs = [log2_(b) if b is not None else None for b in burs]
