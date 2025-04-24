@@ -1,13 +1,6 @@
 import pytest
 
-from amads.core import Score
-from amads.core.utils import (
-    dir2coll,
-    hz2key_num,
-    key_num2hz,
-    keyname,
-    preprocess_melody,
-)
+from amads.core.utils import dir2coll, hz2key_num, key_num2hz, keyname
 from amads.music import example
 
 
@@ -73,43 +66,3 @@ def test_keyname():
     # Test invalid detail option
     with pytest.raises(ValueError):
         keyname(60, detail="invalid_option")
-
-
-def test_preprocess_melody():
-    """Test the preprocess_melody decorator."""
-    print("------- Testing preprocess_melody decorator --------------")
-
-    # Create a test score with known values
-    score = Score.from_melody(
-        pitches=[60, 62, 64], durations=[1.0, 0.5, 2.0]  # C4, D4, E4
-    )
-
-    # Test decorator with only pitches
-    @preprocess_melody
-    def test_pitches_only(pitches):
-        return pitches
-
-    # Test decorator with all parameters
-    @preprocess_melody
-    def test_all_params(pitches, onset_times, durations):
-        return pitches, onset_times, durations
-
-    # Test extracting just pitches
-    assert test_pitches_only(score=score) == [60, 62, 64]
-
-    # Test extracting all parameters
-    pitches, onsets, durs = test_all_params(score=score)
-    assert pitches == [60, 62, 64]
-    assert onsets == [0.0, 1.0, 1.5]
-    assert durs == [1.0, 0.5, 2.0]
-
-    # Test with empty score
-    empty_score = Score()
-
-    @preprocess_melody
-    def test_empty(pitches, durations):
-        return pitches, durations
-
-    empty_pitches, empty_durs = test_empty(score=empty_score)
-    assert empty_pitches == []
-    assert empty_durs == []

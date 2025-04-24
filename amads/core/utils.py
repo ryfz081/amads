@@ -1,9 +1,7 @@
-import inspect
 import math
-from typing import Any, Callable
 
 from ..io.ptscoreread import score_read, score_read_extensions
-from .basics import Note, Pitch, Score
+from .basics import Pitch
 
 
 def dir2coll(filenames):
@@ -111,29 +109,3 @@ def keyname(n, detail="nameoctave"):
         return [keyname_single(k) for k in n]
     else:
         return keyname_single(n)
-
-
-def preprocess_melody(func: Callable) -> Callable:
-    """
-    Decorator to extract melody attributes from a Score object.
-    This provides an easy way to get pitches, onset times, and durations of a melody,
-    negating the need to write boilerplate code.
-    """
-
-    def wrapper(*args, score: Score, **kwargs) -> Any:
-        kwargs = {}
-        requested_params = inspect.signature(func).parameters
-
-        flattened_score = score.flatten(collapse=True)
-        notes = list(flattened_score.find_all(Note))
-
-        if "pitches" in requested_params:
-            kwargs["pitches"] = [note.pitch.key_num for note in notes]
-        if "onset_times" in requested_params:
-            kwargs["onset_times"] = [note.onset for note in notes]
-        if "durations" in requested_params:
-            kwargs["durations"] = [note.duration for note in notes]
-
-        return func(**kwargs)
-
-    return wrapper
