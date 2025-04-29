@@ -46,12 +46,9 @@ General algorithms
 .. autosummary::
    :toctree: _autosummary
    :caption: General algorithms:
+   :recursive:
 
-   amads.algorithms.entropy
-   amads.algorithms.nnotes
-   amads.algorithms.scale
-   amads.algorithms.slice.salami
-   amads.algorithms.slice.window
+   amads.algorithms
 
 Pitch
 -----
@@ -82,7 +79,7 @@ Time
 
    amads.time.durdist1
    amads.time.durdist2
-   amads.time.npvi
+   amads.time.variability
    amads.time.swing
    amads.time.tempo
    amads.time.meter.break_it_up
@@ -94,7 +91,7 @@ Harmony
    :toctree: _autosummary
    :caption: Harmony:
 
-   amads.harmony.root_finding.parncutt_1988
+   amads.harmony.root_finding.parncutt
 
 Melody
 ------
