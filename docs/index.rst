@@ -38,17 +38,18 @@ For the source code, visit the `GitHub repository <https://github.com/music-comp
 
    auto_examples/index
 
-
-
 General algorithms
 ------------------
 
 .. autosummary::
    :toctree: _autosummary
    :caption: General algorithms:
-   :recursive:
 
-   amads.algorithms
+   amads.algorithms.entropy
+   amads.algorithms.nnotes
+   amads.algorithms.scale
+   amads.algorithms.slice.salami
+   amads.algorithms.slice.window
 
 Pitch
 -----
