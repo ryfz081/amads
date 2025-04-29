@@ -19,8 +19,6 @@ def partitura_midi_import(filename, show=False):
     if show:
         for ptpart in ptscore:
             print(ptpart.pretty())
-    for ptpart in ptscore:
-        print("A ptpart: ", ptpart)
     score = Score()
     for ptpart in ptscore.parts:
         partitura_convert_part(ptpart, score)
