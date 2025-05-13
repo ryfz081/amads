@@ -14,7 +14,7 @@ Author:
 """
 
 from math import log2 as log2_
-from typing import Iterable
+from typing import Iterable, Optional
 
 import numpy as np
 
@@ -29,8 +29,8 @@ LOW_BUR, HIGH_BUR = (
 
 # flake8: noqa: W605
 def beat_upbeat_ratio(
-    beats: Iterable[float],
-    upbeats: Iterable[float],
+    beats: Iterable[Optional[float]],
+    upbeats: Iterable[Optional[float]],
     log2: bool = False,
     bounded: bool = False,
     lower_bound: float = LOW_BUR,
@@ -66,9 +66,9 @@ def beat_upbeat_ratio(
 
     Parameters
     ----------
-    beats : Iterable[float]
+    beats : Iterable[Optional[float]]
         An array of beat timestamps. Should not overlap with `upbeats`.
-    upbeats : Iterable[float]
+    upbeats : Iterable[Optional[float]]
         An array of upbeat timestamps.
     log2 : bool, optional
         If True, computes the log base 2 of BUR values, as used in [2]. Defaults to False.
@@ -139,22 +139,21 @@ def beat_upbeat_ratio(
 
 
 def filter_burs(
-    burs: list[float], lower_bound: float, upper_bound: float
-) -> list[float]:
+    burs: list[Optional[float]], lower_bound: float, upper_bound: float
+) -> list[Optional[float]]:
     """Filters a list of BURS between lower_bound < BUR < upper_bound."""
     newburs = []
     for b in burs:
-        if isinstance(b, float):
-            if lower_bound < b < upper_bound:
-                newburs.append(b)
-            else:
-                newburs.append(None)
+        if isinstance(b, float) and lower_bound < b < upper_bound:
+            newburs.append(b)
         else:
             newburs.append(None)
     return newburs
 
 
-def mean_bur(beats: Iterable[float], upbeats: Iterable[float], **kwargs) -> float:
+def mean_bur(
+    beats: Iterable[Optional[float]], upbeats: Iterable[Optional[float]], **kwargs
+) -> float:
     """Calculates mean BUR (or :math:`log_2` BUR) given a list of beats and upbeats"""
     # We use nanmean here as we may have null values in cases where multiple upbeats match with a
     #  single pair of beats, or where no upbeats match with a beat.
@@ -163,7 +162,9 @@ def mean_bur(beats: Iterable[float], upbeats: Iterable[float], **kwargs) -> floa
     return float(np.nanmean(beat_upbeat_ratio(beats, upbeats, **kwargs)))
 
 
-def std_bur(beats: Iterable[float], upbeats: Iterable[float], **kwargs) -> float:
+def std_bur(
+    beats: Iterable[Optional[float]], upbeats: Iterable[Optional[float]], **kwargs
+) -> float:
     """Calculates standard deviation BUR (or :math:`log_2` BUR) given a list of beats and upbeats"""
     return np.nanstd(beat_upbeat_ratio(beats, upbeats, **kwargs))
 

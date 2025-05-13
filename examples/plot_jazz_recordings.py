@@ -17,7 +17,6 @@ import random
 import matplotlib.pyplot as plt
 import mirdata
 import numpy as np
-from pretty_midi import PrettyMIDI
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
@@ -25,12 +24,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from amads.algorithms import lz77_complexity
+from amads.io.pt_midi_import import partitura_midi_import
+from amads.polyphony.skyline import skyline
 from amads.time.swing import beat_upbeat_ratio
 from amads.time.tempo import tempo_mean, tempo_slope
 
 # %%
 # Set some constants
-N_TRACKS = 50  # we'll only analyse this many tracks per performer
+N_TRACKS = 10  # we'll only analyse this many tracks per performer
 SEED = 42
 
 np.random.seed(SEED)
@@ -47,7 +48,7 @@ jtd.download()
 
 # %%
 # Now, we load both the tracks (single instrument data, i.e. just piano)
-# and the multitracks (data for all insturments, e.g. beat tracker results)
+# and the multitracks (data for all instruments, e.g. beat tracker results)
 
 jtd_tracks = jtd.load_tracks()
 jtd_multitracks = jtd.load_multitracks()
@@ -79,49 +80,20 @@ for mtrack_id in jtd.mtrack_ids:
 evansb_tracks = random.sample(evansb_tracks, N_TRACKS)
 petersono_tracks = random.sample(petersono_tracks, N_TRACKS)
 
+
 # %%
-
-
-def skyline_prettymidi(pm: PrettyMIDI, threshold: float = 0.1):
-    """Applies skyline to a pretty MIDI object, following format established in amads.melody.skyline but quicker"""
-    skyline = []
-    notes = pm.instruments[0].notes
-
-    for i in range(len(notes)):
-        note = notes[i]
-        # ignore notes that are below another existing note in skyline
-        if any(
-            note.pitch < prev.pitch and note.start < prev.end - threshold
-            for prev in skyline
-        ):
-            continue
-
-        # append the note to skyline
-        skyline.append(note)
-        # remove notes in skyline that are below the current note
-        for j in reversed(range(len(skyline))):
-            if skyline[j].pitch < note.pitch and note.start < skyline[j].end:
-                # remove low notes quickly followed by a higher note
-                if skyline[j].start > note.start - threshold:
-                    skyline.pop(j)
-                # keep low notes not so quickly followed by a higher note
-                # but shorten the duration to prevent overlap
-                else:
-                    skyline[j].end = note.start
-    return skyline
-
-
 def load_track_annotations(mtrack) -> tuple:
     """Load MIDI and beat positions for a track"""
     # Get the pianist data from the multitrack
     track = mtrack.piano
     # Load up the MIDI file using pretty-midi
-    pm_obj = PrettyMIDI(track.midi_path)
+    pm_obj = partitura_midi_import(track.midi_path, ptprint=False)
     # We'll apply the skyline to the score to get just the melody
-    skylined = skyline_prettymidi(pm_obj)
+    skylined = skyline(pm_obj)
+    skylined_notes = skylined.get_sorted_notes()
     # Now, we want to get the piano onset times and MIDI pitches as separate lists
-    pitches = [note.pitch for note in skylined]
-    onsets = [note.start for note in skylined]
+    pitches = [note.pitch.key_num for note in skylined_notes]
+    onsets = [note.onset for note in skylined_notes]
     # We also want to get the output from the beat track
     # This is a list of crotchet beat timestamps
     beats = mtrack.beats.times
@@ -271,8 +243,3 @@ plt.show()
 # %%
 # Here, a feature > 1 == increases are more likely to be the "target" class (Oscar Peterson)
 # Vice versa, a feature < 1 == increases are less likely to be the target class
-
-# We can see that a large number of notes means that a recording is more likely to be OP
-# On the other hand, a higher degree of melodic complexity means that a recording is LESS likely to be OP
-
-# These findings are broadly consistent with the critical literature on jazz style
