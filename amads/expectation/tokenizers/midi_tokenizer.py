@@ -351,3 +351,144 @@ def midi_to_score(midi_data) -> Score:
     # This is a placeholder - you'll need to implement the conversion
     # from MIDI bytes to your Score format
     raise NotImplementedError("Decoding from tokens to Score not yet implemented")
+
+
+
+
+class REMITokenizer(SymusicTokenizer):
+    """REMI tokenizer using miditok's implementation."""
+    
+    def __init__(self, use_bpe: bool = False, vocab_size: int = 1000, **params):
+        super().__init__('REMI', use_bpe=use_bpe, vocab_size=vocab_size, **params)
+
+    def _add_timing(self, raw_tokens: List[Any], symusic_score: 'symusic.Score') -> List[Token]:
+        """Add timing to REMI tokens using direct symusic note information."""
+        tokens = []
+        vocab = {v: k for k, v in self._tokenizer.vocab.items()}
+        
+        # Get notes from symusic_score for direct time reference
+        notes = sorted(symusic_score.tracks[0].notes, key=lambda x: x.time)
+        current_note_idx = 0
+        current_time = 0  # in milliseconds
+        
+        # In REMI, Pitch tokens follow a Bar or Position token
+        # Use note timing directly from the preprocessed symusic score
+        for i, tok in enumerate(raw_tokens):
+            token_str = vocab.get(tok, str(tok))
+            
+            if token_str.startswith('Pitch_'):
+                # For Pitch tokens, use the current note's start time (already in milliseconds)
+                if current_note_idx < len(notes):
+                    current_time = notes[current_note_idx].time
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0, name=token_str))  # Convert ms to seconds
+                    current_note_idx += 1
+                else:
+                    # If we've run out of notes, just use the last known time
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0, name=token_str))
+            elif token_str.startswith('Position_'):
+                # Position tokens also get timing
+                if current_note_idx < len(notes):
+                    current_time = notes[current_note_idx].time
+                    tokens.append(Token(value=tok, start_time=current_time / 1000.0, name=token_str))
+                else:
+                    tokens.append(Token(value=tok, name=token_str))
+            else:
+                # Other tokens don't get timing
+                tokens.append(Token(value=tok, name=token_str))
+                
+        return tokens
+
+
+
+class TSDTokenizer_Custom(SymusicTokenizer):
+    """Custom TSD tokenizer based on miditok's implementation, courtesy of https://github.com/jazz-style-conditioned-generation/jazz-style-conditioned-generation/blob/main/jazz_style_conditioned_generation/data/tokenizer.py"""
+    
+    def __init__(self, config_params={}, **params):
+        """Initialize the tokenizer.
+        
+        Parameters
+        ----------
+
+        """
+        check_python_package_installed('miditok')
+        from amads.expectation.tokenizers.midi_tokenizer_custom_TSD import CustomTSD, CustomTokenizerConfig, DEFAULT_TOKENIZER_CONFIG
+        
+        config_dict = DEFAULT_TOKENIZER_CONFIG
+        for key, value in config_params.items():
+            config_dict[key] = value
+
+        config = CustomTokenizerConfig(**config_dict)
+
+        self.use_bpe = False
+        #self._tokenizer = CustomTSD(tokenizer_config = CustomTokenizerConfig(**DEFAULT_TOKENIZER_CONFIG))
+        self._tokenizer = CustomTSD(tokenizer_config = config)
+        
+    def _process_midi_file(self, midi_path: str) -> 'symusic.Score':
+        """Process a MIDI file to create a symusic Score with absolute timing.
+        
+        Parameters
+        ----------
+        midi_path : str
+            Path to the MIDI file
+            
+        Returns
+        -------
+        symusic.Score
+            Preprocessed symusic Score with preserved timing
+        """
+        # Load the score while preserving absolute time information
+        symusic_score = load_score(midi_path)
+        # Apply preprocessing to handle note overlaps, short notes, etc.
+        return preprocess_score(symusic_score)
+
+    def _encode_tokens(self, symusic_score: 'symusic.Score') -> List[Any]:
+        """Get raw tokens from the tokenizer."""
+        return self._tokenizer.encode(symusic_score)[0]
+    
+    def _add_timing(self, raw_tokens: List[Any], symusic_score: 'symusic.Score') -> List[Token]:
+        """Add timing to TSD tokens using direct symusic note information."""
+        tokens = []
+        vocab = {v: k for k, v in self._tokenizer.vocab.items()}
+        
+        # Get notes from symusic_score for direct time reference
+        notes = sorted(symusic_score.tracks[0].notes, key=lambda x: x.time)
+        current_note_idx = 0
+        
+        # In TSD, note events are represented by NoteOn tokens followed by a pitch
+        for i, tok in enumerate(raw_tokens):
+            token_str = vocab.get(tok, str(tok))
+            
+            if token_str.startswith('Pitch_'):
+                # For Pitch tokens, use the current note's start time (already in milliseconds)
+                if current_note_idx < len(notes):
+                    # Convert milliseconds to seconds for the timing
+                    time_seconds = notes[current_note_idx].time / 1000.0
+                    tokens.append(Token(value=tok, start_time=time_seconds, name=token_str))
+                    current_note_idx += 1
+                else:
+                    tokens.append(Token(value=tok, name=token_str))
+            else:
+                # Other tokens don't get timing
+                tokens.append(Token(value=tok, name=token_str))
+                
+        return tokens
+
+    def train_on_corpus(self, corpus_paths: List[Union[str, Path]]) -> None:
+        """Train the tokenizer on a corpus of MIDI files.
+        
+        This is a compatibility method for ScoreDataset.
+        
+        Parameters
+        ----------
+        corpus_paths : List[Union[str, Path]]
+            List of paths to MIDI files
+        """
+        pass
+
+    @property
+    def vocab(self):
+        return self._tokenizer.vocab
+    
+    @property
+    def config(self):
+        return self._tokenizer.config
