@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from amads.all import amads_midi_import, pcdist2
+from amads.all import import_midi, pcdist2
 from amads.music import example
 
 # "midi/tones.mid"
@@ -11,7 +11,7 @@ my_midi_file = example.fullpath("midi/sarabande.mid")
 # "midi/tempo.mid"
 
 print("------- input from partitura")
-myscore = amads_midi_import(my_midi_file, show=False)
+myscore = import_midi(my_midi_file, show=False)
 print("------- finished input from partitura")
 
 # myscore = myscore.flatten()

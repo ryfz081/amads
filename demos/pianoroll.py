@@ -1,15 +1,15 @@
 from matplotlib import pyplot as plt
 
-from amads.all import amads_midi_import, pianoroll
+from amads.all import import_midi, pianoroll
 from amads.music import example
 
 my_midi_file = example.fullpath("midi/sarabande.mid")
-myscore = amads_midi_import(my_midi_file, show=False)
+myscore = import_midi(my_midi_file, show=False)
 
 pianoroll(myscore)
 
 my_midi_file = example.fullpath("midi/twochan.mid")
-myscore = amads_midi_import(my_midi_file, show=False)
+myscore = import_midi(my_midi_file, show=False)
 
 pianoroll(myscore)
 plt.show()

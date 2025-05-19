@@ -1,5 +1,7 @@
 """
 How big is a note? Do a bunch of allocations and plot memory usage.
+This code is for making some specific measurements and is not
+intended to be a general-purpose tool or a supported component of AMADS.
 """
 # fmt: off
 # flake8: noqa E129,E303
@@ -23,7 +25,12 @@ import sys
 
 
 def get_total_size(obj, seen=None):
-    """Recursively find the total memory size of an object, including its attributes."""
+    """Recursively find the total memory size of an object, including its attributes.
+    This implements a specific definition of "size" which may or may not be equivalent
+    to that of https://pypi.org/project/objsize/. The tests below measuring the entire
+    process memory footprint seems more useful since actual memory usage includes
+    fragmentation and other overhead that is not included in the size of an object. 
+    """
     size = sys.getsizeof(obj)
     if seen is None:
         seen = set()

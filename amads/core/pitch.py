@@ -144,6 +144,7 @@ class Pitch:
     def __repr__(self):
         return f"Pitch(name='{self.name_with_octave}', key_num={self.key_num})"
 
+    
     def as_tuple(self):
         """Return a tuple representation of the `Pitch` instance.
 
@@ -153,6 +154,7 @@ class Pitch:
             A tuple containing the `key_num` and `alt` values.
         """
         return (self.key_num, self.alt)
+
 
     def __eq__(self, other):
         """Check equality of two Pitch instances. Pitches are equal if
@@ -201,6 +203,7 @@ class Pitch:
             True if this Pitch instance is less than the other, False otherwise.
         """
         return (self.key_num, -self.alt) < (other.key_num, -other.alt)
+
 
     @classmethod
     def from_name(cls, name: str,
@@ -318,6 +321,7 @@ class Pitch:
             The string representation of the pitch name with octave.
         """
         return self.name + str(self.octave)
+
 
     @property
     def step(self) -> str:

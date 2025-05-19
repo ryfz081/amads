@@ -46,7 +46,8 @@ def test_m21_midi_import(m21print: Optional[bool] = False):
     """test the import of a MIDI file using Music21
     """
     midi_file = example.fullpath(MIDI_FILE)
-    m21score = converter.parse(midi_file, format='midi')
+    m21score = converter.parse(midi_file, format='midi',
+                               forceSource=True, quantizePost=False)
     if m21print:
         for m21part in m21score:
             m21part.show('text')

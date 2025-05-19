@@ -4,4 +4,4 @@ from .pianoroll import pianoroll
 from .plotdist import plotdist
 from .pt_midi_import import partitura_midi_import
 from .pt_xml_import import partitura_xml_import
-from .scoreread import amads_midi_import, amads_xml_import, score_read
+from .readscore import import_midi, import_xml, read_score

@@ -299,8 +299,8 @@ def partitura_convert_part(ppart, score):
             duration = (item.end.t - item.start.t) / item.start.quarter
             notes.append(["rest", onset, duration, item.staff])
         elif isinstance(item, pt.score.Tempo):
-            # print("Tempo start", start, "tempo", item.bpm / 60.0)
-            score.time_map.append_beat_tempo(onset, item.bpm / 60.0)
+            # Note: partitura "bpm" is really beats per second!
+            score.time_map.append_beat_tempo(onset, item.bpm)
         # T timer2.start()
     # T timer2.report() # DEBUG
     # print("partitura_convert_part: after pass 1, measures are")
@@ -389,6 +389,7 @@ def partitura_xml_import(filename, show=False):
 
     ptscore = pt.load_score(filename)
     if show:
+        print(f"Partitura score structure from {filename}:")
         for ptpart in ptscore:
             print(ptpart.pretty())
     score = Score()
