@@ -174,4 +174,5 @@ docs/auto_examples
 /.vscode/
 docs/sg_execution_times.rst
 
-/analyze_function_names.py
+# local stuff to keep out of repo
+/ignore/
