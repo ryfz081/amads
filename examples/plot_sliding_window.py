@@ -13,7 +13,7 @@ the result.
 import matplotlib.pyplot as plt
 
 from amads.algorithms.slice.window import sliding_window
-from amads.io.pt_midi_import import import_midi
+from amads.io.readscore import import_midi
 from amads.music import example
 
 # %%
