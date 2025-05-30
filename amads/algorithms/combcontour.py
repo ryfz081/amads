@@ -32,7 +32,7 @@ def combcontour(score: Score):
     #retrieve all the pitches
     p = [n.pitch.key_num for n in Score.find_all(Note)]
     
-    #initialize contour matrix
+    #create contour matrix
     c = np.matrix(np.zeros((a,a), int))
     for j in range(a):
         for k in range(a):
