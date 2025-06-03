@@ -1,7 +1,7 @@
 import numpy as np
-from ..core.basics import Note, Score, Pitch
-from ..algorithms.nnotes import nnotes
-from ..pitch.ismonophonic import ismonophonic
+from ...core.basics import Note, Score, Pitch
+from ...algorithms.nnotes import nnotes
+from ...pitch.ismonophonic import ismonophonic
 
 def combcontour(score: Score):
     """
@@ -11,6 +11,7 @@ def combcontour(score: Score):
     of note i is higher than the pitch of note j. A zero is inserted 
     otherwise. This matrix is a representation of melodic contour,
     preserving relative rather than specific pitch height info.
+    
     Args:
         score (Score): The musical score to analyze
 
