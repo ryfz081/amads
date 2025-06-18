@@ -16,27 +16,27 @@ def combcontour(score: Score):
         score (Score): The musical score to analyze
 
     Returns:
-        matrix (c): numpy matrix of ones and zeros representing melodic contour
+        c (np.ndarray): numpy ndarray (2D matrix) of ones and zeros representing melodic contour
     """
     
 
-    a = nnotes(Score)
+    a = nnotes(score)
 
     #if Score empty, return
     if a == 0: return
     
     #if Score is monophonic, return
-    if not ismonophonic(Score):
+    if not ismonophonic(score):
         print("Works only with monophonic input!")
         return
     
     #retrieve all the pitches
-    p = [n.pitch.key_num for n in Score.find_all(Note)]
+    p = [n.pitch.key_num for n in score.find_all(Note)]
     
     #create contour matrix
-    c = np.matrix(np.zeros((a,a), int))
+    c = np.zeros((a,a), int)
     for j in range(a):
         for k in range(a):
-            c[j,k] = p[j] > p[k]
+            c[j][k] = p[j] > p[k]
     
     return c
